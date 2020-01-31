@@ -9334,7 +9334,8 @@ literal "false"
 \begin_layout Standard
 \begin_inset CommandInset bibtex
 LatexCommand bibtex
-bibfiles "/Users/pauly/Documents/tex/shared/bibtex/all"
+btprint "btPrintCited"
+bibfiles "all"
 options "plain"
 
 \end_inset
