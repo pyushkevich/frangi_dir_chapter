@@ -1,0 +1,9346 @@
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 2
+\use_package amssymb 2
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\use_minted 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Part
+Deformable Image Registration
+\end_layout
+
+\begin_layout Standard
+\begin_inset FormulaMacro
+\newcommand{\argmin}{\operatornamewithlimits{\arg\min}}
+{\arg\min}
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Standard
+Deformable image registration (DIR) is one of the most studied problems
+ in the medical image analysis field.
+ It has led to elegant mathematical solutions that tie together elements
+ of group theory, differential geometry, and probability theory.
+ This chapter describes the basic building blocks of DIR, and provides the
+ theoretical outlines of some widely used algorithms.
+ 
+\end_layout
+
+\begin_layout Subsection
+What is DIR and what are its applications?
+\end_layout
+
+\begin_layout Standard
+In this chapter, we will use the following definition of DIR:
+\end_layout
+
+\begin_layout Quote
+
+\emph on
+DIR is the process of
+\series bold
+ 
+\series default
+non-linearly transforming the space in which images are defined
+\series bold
+ 
+\series default
+in order to match corresponding anatomical locations between images.
+ 
+\end_layout
+
+\begin_layout Standard
+There are several key concepts in this definition:
+\end_layout
+
+\begin_layout Itemize
+DIR is about transforming the space in which images 
+\begin_inset Quotes eld
+\end_inset
+
+live
+\begin_inset Quotes erd
+\end_inset
+
+, rather than images themselves.
+ This is a critical aspect of DIR that can be confusing to newcomers.
+ Mathematically, DIR will be described in terms of functions 
+\begin_inset Formula $\phi:\Omega\rightarrow\Omega$
+\end_inset
+
+ that map points in the image domain 
+\begin_inset Formula $\Omega\subset\mathbb{R}^{n}$
+\end_inset
+
+ to other points in 
+\begin_inset Formula $\Omega$
+\end_inset
+
+.
+ These functions are called 
+\emph on
+spatial transformations, spatial maps, 
+\emph default
+or simply
+\emph on
+ warps.
+\end_layout
+
+\begin_layout Itemize
+Unlike in rigid or affine registration, in DIR we are interested in transformati
+ons that are 
+\emph on
+non-linear.
+ 
+\emph default
+This offers many more (in fact, infinitely many) degrees of freedom for
+ transforming images.
+ This in turn allows DIR to match images more precisely.
+ The disadvantage is added computational complexity, and the need to ensure
+ that transformations 
+\emph on
+
+\begin_inset Formula $\phi$
+\end_inset
+
+ 
+\emph default
+are well-behaved.
+ For example, a lot of research has focused on constraining transformations
+ 
+\begin_inset Formula $\phi$
+\end_inset
+
+ to be 
+\emph on
+invertible
+\emph default
+, which prevents them from tearing or folding the image domain 
+\begin_inset Formula $\Omega$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+The goal of DIR is to match up 
+\emph on
+corresponding anatomical locations 
+\emph default
+between images.
+ For example, when performing DIR on images of faces, corresponding anatomical
+ locations may be the corners of the eyes and lips, tip of the nose, etc.
+ Clearly, the concept of anatomical correspondence is rather tenuous.
+ For example when it comes to matching hair between different people, or
+ between different images of the same person, correspondence is ill defined.
+ This is also true in medical images.
+ For example, in the brain, we might be able to match up certain places
+ in the lateral ventricles and subcortical gray matter structures such as
+ the thalamus between individuals, but not so for cortical folds, as the
+ folding pattern of every brain is unique like a fingerprint.
+ The presence of tumors and lesions in some individuals and not in others
+ makes it even more difficult to find anatomical correspondences.
+ However, these challenges have not prevented DIR from being one of the
+ most useful techniques in medical imaging research.
+\end_layout
+
+\begin_layout Standard
+DIR has many important applications in medical imaging research:
+\end_layout
+
+\begin_layout Itemize
+DIR is used for anatomical normalization in population studies that involve
+ imaging.
+ Consider, for example, functional MRI research, which has transformed the
+ fields of psychology, psychiatry, sociology, linguistics, etc.
+ In a typical study, researchers recruit a cohort of individuals (e.g., 20
+ volunteers) and scan their brains using fMRI under various experimental
+ conditions (e.g., reading long sentences vs.
+ reading short sentences).
+ Analyzing the MRI data from each participant results in a 
+\begin_inset Quotes eld
+\end_inset
+
+heat map
+\begin_inset Quotes erd
+\end_inset
+
+ that describes experiment-related brain activity in each location of the
+ brain.
+ In order to describe the effects of the experiment at the 
+\emph on
+population level
+\emph default
+, rather than individual level, the brains of these different individuals
+ are transformed to a 
+\begin_inset Quotes eld
+\end_inset
+
+template
+\begin_inset Quotes erd
+\end_inset
+
+ brain using DIR, so that the corresponding anatomical regions are matched
+ up between different individuals.
+ 
+\series bold
+[Reference Atlas Chapter]
+\end_layout
+
+\begin_layout Itemize
+DIR is used to quantify changes in longitudinal imaging.
+ Patients undergoing monitoring or treatment for chronic diseases are often
+ scanned at different times and changes between these longitudinal scans
+ are used to assess the progression of disease or efficacy of treatment.
+ For example, in multiple sclerosis, the changes in size and number of white
+ matter lesions is used clinically to determine whether a treatment regimen
+ is effective.
+ DIR between images obtained at different time points produces a transformation
+ that matches anatomical locations across time.
+ Examining the geometric properties of this transformation (i.e., whether
+ it shrinks space or expands space at different locations in the image domain)
+ can provide accurate measurements of change in the size of white matter
+ lesions.
+ Such measurements are much more effective than visual examination of longitudin
+al images, particularly when changes over time are subtle.
+\end_layout
+
+\begin_layout Itemize
+DIR is used to account for motion of organs and tissues, for example during
+ surgery.
+ In image-guided surgery, it is common to acquire pre-operative high-resolution
+ images of the patient's anatomy (e.g., a high-resolution CT) for planning
+ purposes; and to collect lower-resolution images intraoperatively for surgical
+ guidance (e.g., using 3D ultrasound or 2D fluoroscopy).
+ In many parts of the body, such as the abdomen, organs shift, and performing
+ only rigid or affine registration between the preoperative and intraoperative
+ images would result in misalignment and lead to surgical errors.
+ DIR can help account for organ motion.
+\end_layout
+
+\begin_layout Itemize
+DIR is a building block of many image analysis algorithms, among them, atlas-bas
+ed and multi-atlas segmentation.
+ When you are interested in segmenting a certain anatomical structure and
+ you have an example or set of example images in which this structure has
+ already been segmented, performing DIR between these example images and
+ new (not yet segmented) images provides a set of transformations from the
+ example segmentations to the new image.
+ Transforming the example segmentations (an when there are multiple segmentation
+s, combining them in some smart way) yields a segmentation of the new image.
+ 
+\series bold
+[POINT TO MALF chapter]
+\series default
+.
+ 
+\end_layout
+
+\begin_layout Subsection
+DIR Problem Setup
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figs/lung_registration.png
+	lyxscale 20
+	width 100col%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+An example of deformable registration between two 3D chest CT images of
+ the same individual during inhalation/exhalation.
+ The spatial transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ is visualized by plotting how it deforms a rectangular grid in the image
+ domain 
+\begin_inset Formula $\Omega$
+\end_inset
+
+.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:vnr-dir-lungs"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In this subsection, we discuss the general structure of DIR algorithms.
+ An example of DIR between two chest CT scans of the same individual is
+ shown in Figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:vnr-dir-lungs"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+In most algorithms, DIR is formulated as an energy minimization problem
+ in the following form:
+\begin_inset Formula 
+\begin{equation}
+\theta^{*}=\arg\min_{\theta\in\Theta}E[\phi_{\theta};I,J]\quad\mbox{where }\quad E[\phi_{\theta};I,J]=\mu[I,J\circ\phi_{\theta}]+\lambda\rho[\theta]\,.\label{eq:energy}
+\end{equation}
+
+\end_inset
+
+Let us carefully consider each term in the above expression:
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\phi_{\theta}:\Omega\rightarrow\Omega$
+\end_inset
+
+ is the 
+\emph on
+spatial transformation
+\emph default
+ that maps the image domain 
+\begin_inset Formula $\Omega\subset\mathbb{R}^{n}$
+\end_inset
+
+ onto itself.
+ It is a continuous function of 
+\begin_inset Formula $n$
+\end_inset
+
+ variables that has 
+\begin_inset Formula $n$
+\end_inset
+
+ components.
+ For example, in two dimensions, we may write 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ as a vector
+\begin_inset Formula 
+\[
+\phi_{\theta}(\mathbf{x})=\left[\begin{array}{c}
+\phi_{\theta}^{1}(x_{1},x_{2})\\
+\phi_{\theta}^{2}(x_{1},x_{2})
+\end{array}\right]\,,
+\]
+
+\end_inset
+
+where 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\phi_{\theta}^{1}$
+\end_inset
+
+ and 
+\begin_inset Formula $\phi_{\theta}^{2}$
+\end_inset
+
+ are scalar functions, called the components of 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J$
+\end_inset
+
+ are images.
+ In the theoretical portions of this chapter, we will treat them as continuous
+ functions defined on the image domain, i.e., 
+\begin_inset Formula $I,J:\Omega\rightarrow\mathbb{R}$
+\end_inset
+
+.
+ We shall use 
+\begin_inset Formula ${\cal I}_{\Omega}$
+\end_inset
+
+ to denote the space of all images on 
+\begin_inset Formula $\Omega$
+\end_inset
+
+.
+ We typically distinguish between the 
+\emph on
+reference image 
+\emph default
+(alternatively called 
+\emph on
+fixed image
+\emph default
+), which remains unchanged over the course of the energy minimization; and
+ the 
+\emph on
+moving image
+\emph default
+, which is affected by the transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+.
+ In expression (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:energy"
+
+\end_inset
+
+), 
+\begin_inset Formula $I$
+\end_inset
+
+ is the reference image and 
+\begin_inset Formula $J$
+\end_inset
+
+ is the moving image.
+ 
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $J\circ\phi_{\theta}$
+\end_inset
+
+ is the 
+\emph on
+transformed moving image.
+ 
+\emph default
+It is the result of applying the transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ to the moving image 
+\begin_inset Formula $J$
+\end_inset
+
+.
+ The mathematical symbol 
+\begin_inset Formula $\circ$
+\end_inset
+
+ denotes composition, and will be used throughout this chapter.
+ The composition notation is convenient for avoiding having to write the
+ arguments of images and transforms.
+ 
+\begin_inset Formula $J\circ\phi_{\theta}$
+\end_inset
+
+ is a continuous image on the domain 
+\begin_inset Formula $\Omega$
+\end_inset
+
+, given by
+\begin_inset Formula 
+\[
+(J\circ\phi_{\theta})(\mathbf{x})=J(\phi_{\theta}(\mathbf{x}))\,.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\theta$
+\end_inset
+
+ represents the set of 
+\emph on
+transformation parameters
+\emph default
+.
+ These parameters determine the function 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+, i.e., different values of 
+\begin_inset Formula $\theta$
+\end_inset
+
+ correspond to different spatial transformations 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+.
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ The objective of DIR is to determine the transformation parameters that
+ yield the optimal spatial transformation matching the input images 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+In the first class of DIR methods that we will study, called 
+\emph on
+parametric
+\emph default
+ 
+\emph on
+DIR
+\emph default
+, 
+\begin_inset Formula $\theta$
+\end_inset
+
+ will be a finite vector of unknown values.
+ These coefficients are used to define a spatial transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ using a system of basis functions.
+ For example, 
+\begin_inset Formula $\theta$
+\end_inset
+
+ may consist of displacement vectors placed on a grid of control points,
+ from which the continuous transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ is derived using interpolation.
+ When the set of transformation parameters is finite, the registration problem
+ (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:energy"
+
+\end_inset
+
+) can be solved using multivariate optimization methods, e.g., using gradient
+ descent or Newton's method.
+\end_layout
+
+\begin_layout Itemize
+
+\emph on
+Non-parametric
+\emph default
+ DIR methods, which we will study later, have infinitely many transformation
+ parameters, that is to say, 
+\begin_inset Formula $\theta$
+\end_inset
+
+ is modeled as an unknown function, and solving the registration problem
+ (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:energy"
+
+\end_inset
+
+) requires tools of variational calculus.
+ Sometimes in non-parametric methods we do not even distinguish between
+ 
+\begin_inset Formula $\theta$
+\end_inset
+
+ and 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+, i.e., the unknown parameters and the spatial transformation are the same
+ thing.
+ In this case we can rewrite (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:energy"
+
+\end_inset
+
+) omitting 
+\begin_inset Formula $\theta$
+\end_inset
+
+ altogether:
+\begin_inset Formula 
+\[
+\phi^{*}=\arg\min_{\phi:\Omega\rightarrow\Omega}E[\phi;I,J]
+\]
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+\begin_inset Formula $\Theta$
+\end_inset
+
+ represents the set of all possible values that the transformation parameters
+ 
+\begin_inset Formula $\theta$
+\end_inset
+
+ may assume.
+ 
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\mu[\bullet,\bullet]$
+\end_inset
+
+ is the 
+\emph on
+image dissimilarity metric.
+
+\emph default
+ It takes as input two images and returns a value that measures how anatomically
+ dissimilar the two images are.
+ The greater the dissimilarity, the larger the value of the metric.
+ Image dissimilarity metrics are discussed in 
+\series bold
+Chapter XXX
+\series default
+.
+ In this Chapter, we will primarily use the 
+\emph on
+mean squared intensity difference
+\emph default
+ metric, which has the simple form
+\begin_inset Formula 
+\[
+\mu_{\mathrm{MSID}}[I,J]=\int_{\Omega}\left[I(\mathbf{x})-J(\mathbf{x})\right]^{2}\,\mathrm{d}\mathbf{x}\,.
+\]
+
+\end_inset
+
+However, other metrics defined in in 
+\series bold
+Chapter XXX
+\series default
+ are also commonly used in DIR, often with better results than the MSID
+ metric.
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\rho[\theta]$
+\end_inset
+
+ is the regularization term.
+ It can be used to impose soft constraints on the transformation 
+\begin_inset Formula $\phi_{\theta}.$
+\end_inset
+
+ Since DIR problems have a very large number of degrees of freedom in specifying
+ 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+, some form of regularization is necessary to make the optimization problem
+ (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:energy"
+
+\end_inset
+
+) well-posed and to prevent unrealistic transformations, e.g.
+ ones that fold the space 
+\begin_inset Formula $\Omega$
+\end_inset
+
+ onto itself.
+ The term 
+\begin_inset Formula $\rho[\theta]$
+\end_inset
+
+ is designed by the algorithm developer in such a way that when the transformati
+on 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ becomes unrealistic, the value of 
+\begin_inset Formula $\rho[\theta]$
+\end_inset
+
+ becomes large, thus penalizing this particular choice of parameters 
+\begin_inset Formula $\theta$
+\end_inset
+
+.
+ By minimizing the weighted sum of the metric and regularization terms (with
+ weighting provided by the constant 
+\begin_inset Formula $\lambda$
+\end_inset
+
+), registration algorithms seek a tradeoff between good matching of anatomy
+ that is achieved when the metric is minimized, and avoiding unrealistic
+ transformations.
+ Regularization terms are different in different algorithms, but typically
+ involve differential terms that encourage solutions 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ to be smooth and bounded.
+ In some applications, regularization is used to imbue 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ with specific physical or geometric properties, such as local preservation
+ of area or volume.
+ 
+\end_layout
+
+\begin_layout Subsection
+Outline of the Chapter
+\end_layout
+
+\begin_layout Standard
+In the rest of the chapter, we will explore several representative DIR technique
+s.
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+Key Mathematical Concepts
+\series default
+ will be reviewed in Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:vnr-math-concepts"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+ Specifically, we will focus on the concept of diffeomorphisms, a subset
+ of spatial transformations that are smooth and invertible.
+
+\series bold
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+Parametric DIR Methods 
+\series default
+will be discussed in Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:vnr-parametric"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+ These methods use interpolation techniques such as 
+\emph on
+radial basis functions
+\emph default
+ or 
+\emph on
+b-splines
+\emph default
+ to describe continuous transformations 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ using a finite set of parameters 
+\begin_inset Formula $\theta$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+Optical Flow and Related Non-Parametric DIR Methods
+\series default
+ will be discussed in Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:vnr-oflow"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+ Optical flow is not strictly a registration technique, but a way of computing
+ velocities of moving objects in pairs of images taken a short time apart.
+ However, the concept of optical flow is very useful to understanding popular
+ non-parametric registration techniques like the Demons algorithm 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "thirion96"
+literal "true"
+
+\end_inset
+
+ and its more recent variants 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "vercauteren09,avants08media"
+literal "true"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+Large Deformation Diffeomorphic Metric Mapping (LDDMM)
+\series default
+, which will be discussed in Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:vnr-lddmm"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, is a category of non-parametric methods that allow DIR to be formulated
+ as an energy minimization problem while constraining the solutions 
+\begin_inset Formula $\phi$
+\end_inset
+
+ to be smooth and invertible (diffeomorphic).
+ LDDMM also provides a mathematically sound way to measure distances and
+ perform statistics in the infinite-dimensional space of images, and for
+ this reason it has found extensive applications in studies of anatomical
+ variability.
+ 
+\end_layout
+
+\begin_layout Section
+Mathematical Concepts
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:vnr-math-concepts"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This section introduces several mathematical concepts that will be used
+ throughout the rest of the chapter.
+ These concepts primarily involve spatial transformations.
+\end_layout
+
+\begin_layout Subsection
+General Concepts for Transformations
+\end_layout
+
+\begin_layout Subsubsection
+Transformation vs.
+ Displacement.
+\end_layout
+
+\begin_layout Standard
+As noted above, a spatial transformation 
+\begin_inset Formula $\phi:\Omega\rightarrow\Omega$
+\end_inset
+
+ is a mapping of the image domain 
+\begin_inset Formula $\Omega$
+\end_inset
+
+ onto itself.
+ A special case is the 
+\emph on
+identity transformation
+\emph default
+ 
+\begin_inset Formula $\mathrm{Id}$
+\end_inset
+
+ that maps every point to itself:
+\begin_inset Formula 
+\begin{equation}
+\mathrm{Id}(\mathbf{x})=\mathbf{x}\,.\label{eq:vnr-id-transform}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+It is sometimes convenient to express spatial transformations as a sum of
+ the identity transformation and a vector-valued function called a 
+\emph on
+displacement:
+\emph default
+
+\begin_inset Formula 
+\[
+\phi(\mathbf{x})=\mathbf{x}+\text{\textbf{u}(\textbf{x})}\,.
+\]
+
+\end_inset
+
+The distinction between transformations and displacements is simple, but
+ important.
+ The function 
+\begin_inset Formula $\phi(\mathbf{x})$
+\end_inset
+
+ describes the 
+\emph on
+new position
+\emph default
+ of point 
+\series bold
+
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+
+\series default
+ after the transformation.
+ The displacement 
+\series bold
+u
+\series default
+(
+\series bold
+x
+\series default
+) describes the 
+\emph on
+change
+\emph default
+ in the position of a point 
+\series bold
+x 
+\series default
+under the transformation 
+\begin_inset Formula $\phi$
+\end_inset
+
+.
+ For example, in two dimensions, 
+\begin_inset Formula $\phi$
+\end_inset
+
+ might map the point 
+\begin_inset Formula $(2.0,2.1)$
+\end_inset
+
+ to a new coordinate 
+\begin_inset Formula $(2.4,1.9)$
+\end_inset
+
+.
+ The corresponding displacement is 
+\begin_inset Formula $(0.4,-0.2)$
+\end_inset
+
+.
+ We will use Greek letters 
+\begin_inset Formula $\phi,\psi$
+\end_inset
+
+ to denote transformations, and boldface Roman letters 
+\begin_inset Formula $\mathbf{u},\mathbf{v}$
+\end_inset
+
+ to denote displacements.
+ 
+\end_layout
+
+\begin_layout Standard
+The reason why it is convenient to represent transformations as displacements
+ is that a given displacement value such as 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $(0.4,-0.2)$
+\end_inset
+
+ can be interpreted the same way everywhere in the domain 
+\begin_inset Formula $\Omega$
+\end_inset
+
+.
+ By contrast, a transformation value 
+(2.4,1.9) has a different interpretation depending on 
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+.
+ In DIR algorithms, we often want to restrict the transformation 
+\begin_inset Formula $\phi$
+\end_inset
+
+ to be close to identity over some regions, particularly near the boundary
+ of 
+
+\begin_inset Formula $\Omega$
+\end_inset
+
+.
+ Enforcing
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ this condition as 
+\begin_inset Formula $\text{\textbf{u}(\textbf{x})\ensuremath{\simeq}\textbf{0}}$
+\end_inset
+
+ during operations such as smoothing or interpolation is simpler algorithmically
+ than enforcing 
+\begin_inset Formula $\phi(\mathbf{x})\simeq\mathbf{x}$
+\end_inset
+
+.
+ Most computer implementations of DIR algorithms represent transformations
+ in memory as displacements.
+ 
+\end_layout
+
+\begin_layout Subsubsection
+Composition.
+ 
+\end_layout
+
+\begin_layout Standard
+Given a pair of transformations 
+\begin_inset Formula $\phi,\psi:\Omega\rightarrow\Omega$
+\end_inset
+
+, the composition of 
+\begin_inset Formula $\phi$
+\end_inset
+
+ and 
+\begin_inset Formula $\psi$
+\end_inset
+
+ is a new transformation denoted 
+\begin_inset Formula $\phi\circ\psi$
+\end_inset
+
+, defined as:
+\begin_inset Formula 
+\[
+(\phi\circ\psi)(\mathbf{x})=\phi(\psi(\mathbf{x}))\,.
+\]
+
+\end_inset
+
+Intuitively, 
+\begin_inset Formula $\phi\circ\psi$
+\end_inset
+
+ is the transformation we get by first applying the transformation 
+\begin_inset Formula $\psi$
+\end_inset
+
+ and then applying the transformation 
+\begin_inset Formula $\phi$
+\end_inset
+
+.
+ It is easy (and a good exercise) to show that the displacement 
+\series bold
+w
+\series default
+ corresponding to the transformation 
+\begin_inset Formula $\phi\circ\psi$
+\end_inset
+
+ has the form
+\begin_inset Formula 
+\[
+\mathbf{w}(\mathbf{x})=\mathbf{v}(\mathbf{x})+\mathbf{u}(\mathbf{x}+\mathbf{v}(\mathbf{x}))\,,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\mathbf{u}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ are the displacements corresponding to the transformations 
+\begin_inset Formula $\phi$
+\end_inset
+
+ and 
+\begin_inset Formula $\psi$
+\end_inset
+
+, respectively.
+\end_layout
+
+\begin_layout Subsubsection
+Computer Implementation.
+\end_layout
+
+\begin_layout Standard
+When representing transformations in the computer we will almost always
+ represent them as displacements.
+ The 
+\begin_inset Formula $n$
+\end_inset
+
+ components of the displacement 
+\begin_inset Formula $\mathbf{u}$
+\end_inset
+
+ can be stored as 
+\begin_inset Formula $n$
+\end_inset
+
+-dimensional images.
+ The composition of two transformations can be computed using built-in functions
+ for interpolation available in many software libraries.
+ The following MATLAB listings show functions for applying a spatial transformat
+ion to an image and for composing two spatial transformations.
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "language=Matlab,basicstyle={\scriptsize\ttfamily}"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+function J_warped = warp_image_2D(I, J, ux, uy)
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+% 	I: reference/fixed image
+\end_layout
+
+\begin_layout Plain Layout
+
+% 	J: moving image 
+\end_layout
+
+\begin_layout Plain Layout
+
+% 	ux, uy: x and y components of transformation phi
+\end_layout
+
+\begin_layout Plain Layout
+
+%     J_warped: the transformed (warped) moving image
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+% Create a coordinate grid over the reference image domain
+\end_layout
+
+\begin_layout Plain Layout
+
+[x,y] = ndgrid(1:size(I,1), 1:size(I,2));
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+% Interpolate the moving image
+\end_layout
+
+\begin_layout Plain Layout
+
+J_warped = interpn(J, px + ux, py + uy, '*linear', 0)
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "language=Matlab,basicstyle={\scriptsize\ttfamily}"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+function [wx,wy] = compose_transformations_2D(I, ux, uy, vx, vy)
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+% 	I: reference/fixed image
+\end_layout
+
+\begin_layout Plain Layout
+
+% 	ux, uy: x and y components of transformation phi
+\end_layout
+
+\begin_layout Plain Layout
+
+% 	vx, vy: x and y components of transformation psi
+\end_layout
+
+\begin_layout Plain Layout
+
+% 	wx, wy: x and y components of phi composed with psi
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+% Create a coordinate grid over the reference image domain
+\end_layout
+
+\begin_layout Plain Layout
+
+[x,y] = ndgrid(1:size(I,1), 1:size(I,2));
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+% Perform the composition
+\end_layout
+
+\begin_layout Plain Layout
+
+wx = vx + interpn(ux, px + vx, py + vy, '*linear', 0)
+\end_layout
+
+\begin_layout Plain Layout
+
+wy = vy + interpn(uy, px + vx, py + vy, '*linear', 0)
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Jacobian Matrix and Determinant
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figs/jacobian.png
+	lyxscale 20
+	width 100col%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+An example of a Jacobian determinant map derived from deformable registration
+ between two MRI scans of the brain of the same individual taken one year
+ apart.
+ In the presence of neurodegenerative disease, brain gray matter (gray)
+ visibly atrophies and cerebrospinal fluid (dark) expands.
+ The Jacobian map (plotted here on the logarithmic scale) highlights regions
+ of expansion (red) and shrinkage (blue).
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:vnr-jacobian"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+An important property of a transformation around a point is whether it expands
+ or compresses space.
+ For example, with aging, gray matter structures in the brain compress (due
+ to loss of neurons and synapses) while the cerebrospinal fluid in the brain
+ expands to fill in the space (Figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:vnr-jacobian"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
+ The local expansion or compression caused by a spatial transformation 
+\begin_inset Formula $\phi$
+\end_inset
+
+ is measured by the determinant of the 
+\emph on
+Jacobian
+\emph default
+ 
+\emph on
+matrix
+\emph default
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+|D\phi|=\det\left[\begin{array}{ccc}
+\frac{\partial\phi^{1}}{\partial x_{1}} & \cdots & \frac{\partial\phi^{1}}{\partial x_{n}}\\
+\vdots & \ddots & \vdots\\
+\frac{\partial\phi^{n}}{\partial x_{1}} & \cdots & \frac{\partial\phi^{n}}{\partial x_{n}}
+\end{array}\right]\,.\label{eq:jacobian-1}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+To interpret 
+\begin_inset Formula $|D\phi|$
+\end_inset
+
+ geometrically, consider a small equilateral triangle (or in 3D, a tetrahedron)
+ 
+\begin_inset Formula $T_{\mathbf{x},\epsilon}$
+\end_inset
+
+ with sides of length 
+\begin_inset Formula $\epsilon$
+\end_inset
+
+ that is centered around a point 
+\begin_inset Formula $\mathbf{x}\in\Omega$
+\end_inset
+
+.
+ The transformation 
+\begin_inset Formula $\phi$
+\end_inset
+
+ will map the corners of 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $T_{\mathbf{x},\epsilon}$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ to new locations, forming a new triangle/tetrahedron 
+\begin_inset Formula $\phi T_{\mathbf{x},\epsilon}$
+\end_inset
+
+.
+ The ratio of the areas/volumes of 
+\begin_inset Formula $\phi T_{\mathbf{x},\epsilon}$
+\end_inset
+
+ and 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $T_{\mathbf{x},\epsilon}$
+\end_inset
+
+ describes the local expansion/contraction of space around 
+\family default
+\series bold
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+.
+ The Jacobian determinant
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ 
+\begin_inset Formula $|D\phi|$
+\end_inset
+
+ is simply the limit of this area/volume ratio as 
+\begin_inset Formula $\epsilon\rightarrow0$
+\end_inset
+
+.
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+Technically, this statement is correct only when using a signed definition
+ of the area/volume.
+ If a transformation changes the order of the vertices of the triangle (e.g.,
+ from clockwise to counterclockwise) or the order of the faces of the tetrahedro
+n, then the area/volume is taken with a negative sign.
+ 
+\end_layout
+
+\end_inset
+
+ When 
+\begin_inset Formula $|D\phi|=1$
+\end_inset
+
+, there is no change in volume, when 
+\begin_inset Formula $0<|D\phi|<1$
+\end_inset
+
+, the transformation is associated with shrinking around 
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+, and when 
+\begin_inset Formula $|D\phi|>1$
+\end_inset
+
+, it is associated with expansion.
+ Negative values of 
+\begin_inset Formula $|D\phi|$
+\end_inset
+
+ occur when the transformation 
+\begin_inset Formula $\phi$
+\end_inset
+
+ causes the space to fold.
+ 
+\end_layout
+
+\begin_layout Subsection
+Diffeomorphisms
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+This section is important for understanding the diffeomorphic registration
+ techniques discussed in Sections 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:vnr-oflow"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:vnr-lddmm"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+ Readers interested in a quick overview of deformable registration can skip
+ the rest of the section.
+ 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:vnr-sec-math-diff"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+It is impossible to discuss modern approaches to image registration without
+ mentioning diffeomorphisms.
+ A spatial transformation 
+\begin_inset Formula $\phi:\Omega\rightarrow\Omega$
+\end_inset
+
+ is 
+\emph on
+a diffeomorphism
+\emph default
+ if 
+\begin_inset Formula $\phi$
+\end_inset
+
+ is differentiable and has a differentiable inverse 
+\begin_inset Formula $\phi^{-1}:\Omega\rightarrow\Omega$
+\end_inset
+
+, i.e.,
+\begin_inset Formula 
+\[
+\phi^{-1}(\phi(\mathbf{x}))=\mathbf{x}\quad\forall\mathbf{x}\in\Omega\,,
+\]
+
+\end_inset
+
+or, written in terms of composition, 
+\begin_inset Formula 
+\[
+\phi^{-1}\circ\phi=\text{Id}\,.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In many applications of DIR, we require the solutions to be diffeomorphisms.
+ There are multiple reasons for this, such as:
+\end_layout
+
+\begin_layout Itemize
+DIR is often used to map per-pixel measurements from the moving image to
+ the fixed image (this data may be in the form of segmentations, statistical
+ maps such as those derived from functional MRI experiments, etc.).
+ In the course of analysis it is often necessary to also be able to map
+ the information in the opposite direction, from fixed to moving.
+ For example, in functional MRI analysis, we may map information from individual
+ brains to a template brain in order to perform group analysis and identify
+ brain regions associated with a particular cognitive function, such as
+ finger tapping.
+ We then want to be able to map these regions back into individual subjects'
+ brains for secondary analyses (e.g., brain network analyses).
+ When DIR produces diffeomorphic transformations, we are guaranteed that
+ information can be mapped in both directions.
+\end_layout
+
+\begin_layout Itemize
+In many research studies, the transformations derived by DIR are used as
+ the source of features for statistical analysis.
+ In 
+\emph on
+deformation-based morphometry (DBM) 
+\emph default
+
+\begin_inset CommandInset citation
+LatexCommand cite
+key "hua09"
+literal "false"
+
+\end_inset
+
+, DIR is performed between a pair of scans of the same individual taken
+ some time apart.
+ The Jacobian determinant of the transformation 
+\begin_inset Formula $\phi$
+\end_inset
+
+ is then analyzed to identify anatomical regions where tissue has shrunk
+ or expanded over time.
+ Such measures of tissue loss and expansion can be sensitive to subtle atrophy
+ that occurs in the brain in some neurodegenerative diseases, such as Alzheimer'
+s.
+ However, when a transformation 
+\begin_inset Formula $\phi$
+\end_inset
+
+ is not invertible, there exist points in 
+\begin_inset Formula $\Omega$
+\end_inset
+
+ where 
+\begin_inset Formula $|D\phi|\le0$
+\end_inset
+
+, which corresponds to the folding or self-intersection of the space, and
+ cannot be interpreted in an anatomically meaningful way.
+ Therefore, in DBM studies, we aim to restrict solutions of DIR to diffeomorphis
+ms.
+ 
+\end_layout
+
+\begin_layout Itemize
+When modeling the motion of organs such as the beating heart, the underlying
+ anatomy is known a priori to deform in a way that is diffeomorphic, so
+ it is only natural to require the solutions of DIR to be diffeomorphisms.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figs/warp_examples.png
+	lyxscale 20
+	width 100col%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Examples of diffeomorphic (a, b) and not diffeomorphic (c, d) transformations.
+ Even though transformation (c) is very smooth, it is not invertible.
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:vnr-warp-examples"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Examples of diffeomorphic and non-diffeomorphic transformations in two dimension
+s are shown in Figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:vnr-warp-examples"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+ An important observation is that 
+\emph on
+smoothness is not a sufficient condition for a diffeomorphism
+\emph default
+: it is possible to have a very smooth transformation that does not have
+ an inverse, just like the function 
+\begin_inset Formula $f(x)=(2x-1)^{2}$
+\end_inset
+
+ does not have an inverse on the interval 
+\begin_inset Formula $x\in[0,1].$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Group of Diffeomorphisms
+\end_layout
+
+\begin_layout Standard
+An important property of diffeomorphisms is that they 
+\emph on
+form a group under the operation of composition
+\emph default
+, called 
+\begin_inset Formula $\mathrm{Diff.}$
+\end_inset
+
+ Specifically, it is easy to verify that the four conditions of a set being
+ a group are met:
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+Closure
+\series default
+: 
+\begin_inset Formula $\phi\circ\psi\in\mathrm{Diff}$
+\end_inset
+
+ for all 
+\begin_inset Formula $\phi,\psi\in\mathrm{Diff}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+Identity
+\series default
+: There exists an element 
+\begin_inset Formula $\mathrm{Id}\in\mathrm{Diff}$
+\end_inset
+
+ that satisfies 
+\begin_inset Formula $\phi\circ\mathrm{Id}=\mathrm{Id}\circ\phi=\phi$
+\end_inset
+
+ for all 
+\begin_inset Formula $\phi\in\mathrm{Diff}$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+Associativity
+\series default
+: For all 
+\begin_inset Formula $\phi,\psi,\chi\in\mathrm{Diff}$
+\end_inset
+
+, 
+\begin_inset Formula $(\phi\circ\psi)\circ\chi=\phi\circ(\psi\circ\chi)$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+Inverse
+\series default
+: For all 
+\begin_inset Formula $\phi\in\mathrm{Diff}$
+\end_inset
+
+, there exists 
+\begin_inset Formula $\phi^{-1}\in\mathrm{Diff}$
+\end_inset
+
+ such that 
+\begin_inset Formula $\phi\circ\phi^{-1}=\phi^{-1}\circ\phi=\mathrm{Id}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+One important property of diffeomorphisms is that the Jacobian determinant
+ of 
+\begin_inset Formula $\phi\in\mathrm{Diff}$
+\end_inset
+
+ is non-negative for all 
+\begin_inset Formula $\mathbf{x}\in\Omega$
+\end_inset
+
+.
+ Conversely, if 
+\begin_inset Formula $\phi$
+\end_inset
+
+ is a differentiable vector-valued function that satisfies 
+\begin_inset Formula $|D\phi|>0$
+\end_inset
+
+ for all 
+\begin_inset Formula $\mathbf{x}\in\Omega$
+\end_inset
+
+, then 
+\begin_inset Formula $\phi$
+\end_inset
+
+ is a diffeomorphism.
+\end_layout
+
+\begin_layout Subsubsection
+Small Transformations
+\end_layout
+
+\begin_layout Standard
+While it is easy to define what a diffeomorphism is, it is less obvious
+ how one would go about generating diffeomorphisms.
+ A useful building block are the so-called 
+\emph on
+small transformations
+\emph default
+.
+ Let 
+\begin_inset Formula $\mathbf{u}:\Omega\rightarrow\mathbb{R}^{n}$
+\end_inset
+
+ be a vector-valued function that is differentiable, bounded and has a bounded
+ derivative, i.e., 
+\begin_inset Formula $|\mathbf{u}|+|D\mathbf{u}|\le M$
+\end_inset
+
+ for all 
+\begin_inset Formula $\mathbf{x}\in\Omega$
+\end_inset
+
+ and some 
+\begin_inset Formula $M>0$
+\end_inset
+
+.
+ Let us denote the space of all such functions 
+\begin_inset Formula ${\cal U}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Then for a sufficiently small 
+\begin_inset Formula $\epsilon>0$
+\end_inset
+
+, the transformation
+\begin_inset Formula 
+\[
+\psi(\mathbf{x})=\mathbf{x}+\epsilon\mathbf{u}(\mathbf{x})
+\]
+
+\end_inset
+
+has a positive Jacobian determinant for every 
+\begin_inset Formula $\mathbf{x}\in\Omega$
+\end_inset
+
+, and therefore is a diffeomorphism.
+ We call 
+\begin_inset Formula $\psi$
+\end_inset
+
+ a small transformation because it only slightly deviates from 
+\begin_inset Formula $\mathrm{Id}$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+Now, since a composition of two diffeomorphisms is a diffeomorphism, we
+ can use small transformations to build up larger transformations.
+ Given a set of functions 
+\begin_inset Formula $\mathbf{u}_{1},\ldots,\mathbf{u}_{n}$
+\end_inset
+
+ in 
+\begin_inset Formula ${\cal U}$
+\end_inset
+
+, we can compose the corresponding small transformations 
+\begin_inset Formula $\psi_{i}(\mathbf{x})=\mathbf{x}+\epsilon\mathbf{u}_{i}(\mathbf{x})$
+\end_inset
+
+, yielding a 
+\begin_inset Quotes eld
+\end_inset
+
+large
+\begin_inset Quotes erd
+\end_inset
+
+ transformation 
+\begin_inset Formula $\phi$
+\end_inset
+
+ that is diffeomorphic:
+\begin_inset Formula 
+\begin{equation}
+\phi=\psi_{n}\circ\psi_{n-1}\circ\ldots\circ\psi_{1}\,.\label{eq:vnl-diff-small}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The key observation here is that it is relatively easy to generate vector-valued
+ functions that are differentiable and bounded (e.g., this can be done by
+ interpolating a discrete set of vectors placed in 
+\begin_inset Formula $\Omega)$
+\end_inset
+
+.
+ The recipe above provides a way to use such functions to generate diffeomorphic
+ transformations, which form a highly non-linear subspace of the space of
+ all transformations.
+ The general idea of generating diffeomorphic transformations by composing
+ small transformations is used throughout the later portion of this chapter.
+\end_layout
+
+\begin_layout Subsubsection
+Flow Ordinary Differential Equation
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:vnr-diff-flowode"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Another closely related way to generate diffeomorphisms in 
+\begin_inset Formula $\mathbb{R}^{n}$
+\end_inset
+
+ is by means of the flow ordinary differential equation (ODE) 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "arnold66"
+literal "false"
+
+\end_inset
+
+.
+ Instead of defining a discrete set of functions 
+\begin_inset Formula $\mathbf{u}_{1},\ldots,\mathbf{u}_{n}$
+\end_inset
+
+ in 
+\begin_inset Formula ${\cal U}$
+\end_inset
+
+ as we did above, let us consider a function 
+\begin_inset Formula $\mathbf{v}(\mathbf{x},t):\Omega\times[0,1]\rightarrow\mathbb{R}^{n}$
+\end_inset
+
+, where 
+\begin_inset Formula $t$
+\end_inset
+
+ is a time dimension.
+ Let 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ be differentiable in 
+\begin_inset Formula $t$
+\end_inset
+
+ and let 
+\begin_inset Formula $\mathbf{v}(\bullet,t)\in{\cal U}$
+\end_inset
+
+ for all 
+\begin_inset Formula $t$
+\end_inset
+
+.
+ We will call this function a 
+\emph on
+time-varying velocity field
+\emph default
+.
+ Think of it as a function that describes the wind velocity in a region
+ of space over time.
+ Now consider a large collection of particles (like dust or seed pods) that
+ are being carried around by the wind.
+ Let the trajectory of the particle located at coordinate 
+\series bold
+
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+
+\series default
+ at time 
+\begin_inset Formula $0$
+\end_inset
+
+ particle be denoted by the function 
+\begin_inset Formula $\phi(\mathbf{x},t)$
+\end_inset
+
+.
+ The relationship between the particle trajectories and the wind field is
+ expressed by the following 
+\emph on
+flow ODE
+\emph default
+: 
+\begin_inset Formula 
+\begin{equation}
+\frac{\text{d}\phi}{\text{d}t}(\mathbf{x},t)=\mathbf{v}(\phi(\mathbf{x},t),t)\,,\quad\text{subj. to}\,\,\phi(\mathbf{x},0)=\mathbf{x}\,.\label{eq:vnr-diff-flowode}
+\end{equation}
+
+\end_inset
+
+The equation states that the trajectory of every particle is tangent to
+ the wind direction at its current location.
+ The existence and uniqueness theorem for first-oder ODEs implies that the
+ solutions of this equation are diffeomorphisms for all 
+\begin_inset Formula $t\in[0,1]$
+\end_inset
+
+.
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "arnold98"
+literal "false"
+
+\end_inset
+
+
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Is this correct?
+\end_layout
+
+\end_inset
+
+.
+ Hence, the flow ODE provides us with another recipe to generate diffeomorphisms
+ given only moderately constrained vector-valued functions.
+ We can think of the flow ODE as a 
+\begin_inset Quotes eld
+\end_inset
+
+black box
+\begin_inset Quotes erd
+\end_inset
+
+ that takes as its input a smooth and bounded time-varying velocity field
+ and outputs a diffeomorphic transformation 
+\begin_inset Formula $\phi(\mathbf{x},1)$
+\end_inset
+
+.
+ Figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:vnr-flow-1d"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ illustrates the flow ODE in one spatial dimension.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figs/flow_ode_1d.png
+	lyxscale 20
+	width 100col%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Illustration of the flow ODE for one spatial dimension.
+ In 
+\series bold
+(a)
+\series default
+, the gray arrows represent the time-varying velocity field 
+\begin_inset Formula $v(x,t)$
+\end_inset
+
+ and the blue, red, and green curves represent the solution of the flow
+ ODE, 
+\begin_inset Formula $\phi(x,t)$
+\end_inset
+
+, for 
+\begin_inset Formula $x=0.1$
+\end_inset
+
+, 
+\begin_inset Formula $x=0.4$
+\end_inset
+
+, and 
+\begin_inset Formula $x=0.5$
+\end_inset
+
+.
+ The tangent lines to the curves coincide with the velocity field (as prescribed
+ by the flow ODE).
+ The red and blue curves come very close to each other after 
+\begin_inset Formula $t>0.5$
+\end_inset
+
+, but never cross, so that the order of the curves is maintained through
+ time.
+ In 
+\series bold
+(b)
+\series default
+, the solution of the flow ODE is plotted for regularly spaced values of
+ 
+\begin_inset Formula $x$
+\end_inset
+
+, again illustrating that the paths never cross and the order of the curves
+ is maintained over time.
+ In 
+\series bold
+(c)
+\series default
+, the end point of the flow, 
+\begin_inset Formula $\phi(x,1)$
+\end_inset
+
+, is plotted as a function of 
+\begin_inset Formula $x$
+\end_inset
+
+.
+ The function 
+\begin_inset Formula $\phi(x,1)$
+\end_inset
+
+ is monotonic in 
+\begin_inset Formula $x$
+\end_inset
+
+, and smooth, hence it is a diffeomorphism.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:vnr-flow-1d"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+There is a close relationship between the flow ODE and our previous recipe
+ of generating diffeomorphisms by composing a sequence of small deformations.
+ Let us approximate the solution of the flow ODE using Euler's method.
+ Euler's method is based on the approximation 
+\begin_inset Formula $\frac{\text{d}\phi}{\text{d}t}(\mathbf{x},t)\simeq\frac{\phi(x,t+\delta t)-\phi(x,t)}{\delta t}$
+\end_inset
+
+, where 
+\begin_inset Formula $\delta t>0$
+\end_inset
+
+ is a small step size.
+ Plugging this approximation into the ODE leads to the following recurrence:
+\begin_inset Formula 
+\[
+\phi(\mathbf{x},t+\delta t)=\phi(\mathbf{x},t)+\delta t\cdot\mathbf{v}(\phi(\mathbf{x},t),t)\,,
+\]
+
+\end_inset
+
+which can be rewritten as follows:
+\begin_inset Formula 
+\[
+\phi(\mathbf{x},t+\delta t)=\psi(\phi(\mathbf{x},t))\qquad\text{where }\psi(\mathbf{x})=\mathbf{x}+\delta t\cdot\mathbf{v}(\mathbf{x},t)\,.
+\]
+
+\end_inset
+
+The function 
+\begin_inset Formula $\psi$
+\end_inset
+
+ is a small transformation (since 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ is smooth and bounded, and 
+\begin_inset Formula $\delta t$
+\end_inset
+
+ is a small value), and thus for every 
+\begin_inset Formula $t$
+\end_inset
+
+, the function 
+\begin_inset Formula $\phi(\mathbf{x},t)$
+\end_inset
+
+ is simply a sequence of compositions of small transformations, just as
+ in (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnl-diff-small"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) above.
+ 
+\end_layout
+
+\begin_layout Subsubsection
+Scaling and Squaring Algorithm
+\end_layout
+
+\begin_layout Standard
+Consider the natural exponential function 
+\begin_inset Formula $e^{x}$
+\end_inset
+
+ from calculus.
+ It has a property that it maps the entire real line 
+\begin_inset Formula $\mathbb{R}$
+\end_inset
+
+ onto the group of positive real numbers under the operation of multiplication.
+ One way to define the natural exponential function is as follows:
+\begin_inset Formula 
+\[
+e^{x}=\lim_{m\rightarrow\infty}\left(1+\frac{x}{m}\right)^{m}\,.
+\]
+
+\end_inset
+
+This definition of exponentiation (i.e., taking an element around the identity
+ element of the group, and repeatedly applying the group operation) can
+ be generalized to other groups.
+ For example, the group of rotation matrices in 
+\begin_inset Formula $\mathbb{R}^{3}$
+\end_inset
+
+ under the operation of matrix multiplication has an equivalent exponential
+ map that maps vectors 
+\begin_inset Formula $\mathbb{R}^{3}$
+\end_inset
+
+ to rotation matrices:
+\begin_inset Formula 
+\[
+\exp(\mathbf{w})=\lim_{m\rightarrow\infty}\left\{ I_{3\times3}+\frac{1}{m}\begin{bmatrix}0 & -w_{3} & w_{2}\\
+w_{3} & 0 & -w_{1}\\
+-w_{2} & w_{1} & 0
+\end{bmatrix}\right\} ^{m}\,,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\{\ldots\}^{m}$
+\end_inset
+
+ means multiplying a matrix by itself 
+\begin_inset Formula $m$
+\end_inset
+
+ times.
+ For any 
+\begin_inset Formula $\mathbf{w}\in\mathbb{R}^{3}$
+\end_inset
+
+, the exponential map generates a valid rotation matrix, and conversely,
+ every rotation matrix corresponds to some vector 
+\begin_inset Formula $\mathbf{w}\in\mathbb{R}^{3}$
+\end_inset
+
+.
+ The beauty of this construct is that it allows us to parameterize a non-linear
+ manifold of rotation matrices, which are orthonormal matrices and have
+ only three degrees of freedom despite having nine elements, using elements
+ of the three-dimensional Euclidean space.
+ 
+\end_layout
+
+\begin_layout Standard
+The equivalent notion of an exponential map can also be defined for the
+ group of diffeomorphisms:
+\begin_inset Formula 
+\begin{equation}
+\exp(\mathbf{u})=\lim_{m\rightarrow\infty}\underbrace{(\text{Id}+\frac{1}{m}\mathbf{u})\circ\ldots\circ(\text{Id}+\frac{1}{m}\mathbf{u})}_{m\,\text{times}}\,.\label{eq:vnr-expmap-diff}
+\end{equation}
+
+\end_inset
+
+As before, 
+\begin_inset Formula $\exp(\mathbf{u})$
+\end_inset
+
+ involves the composition of (many) small transformations, and therefore
+ is a diffeomorphism.
+ One of the attractive properties of the exponential map is that if 
+\begin_inset Formula $\phi=\exp(\mathbf{u})$
+\end_inset
+
+ then the inverse transformation is given by 
+\begin_inset Formula $\phi^{-1}=\exp(-\mathbf{u})$
+\end_inset
+
+; as is also the case for the natural exponential function and for exponentiatio
+n in the group of rotation matrices.
+\end_layout
+
+\begin_layout Standard
+In practice, computing the exponential map as in (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-expmap-diff"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) appears prohibitive.
+ However, an excellent approximation of the exponential map is provided
+ by the recursive 
+\emph on
+scaling and squaring algorithm
+\emph default
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "arsigny06a"
+literal "false"
+
+\end_inset
+
+.
+ Observe than when 
+\begin_inset Formula $m$
+\end_inset
+
+ in (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-expmap-diff"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) is even, due to the associative property of composition, 
+\begin_inset Formula $\exp(\mathbf{u})$
+\end_inset
+
+ can be computed as the composition of two identical terms, each involving
+ 
+\begin_inset Formula $m/2$
+\end_inset
+
+ compositions.
+ If we let 
+\begin_inset Formula $m$
+\end_inset
+
+ be a power of 2, i.e., 
+\begin_inset Formula $m=2^{K}$
+\end_inset
+
+ for some integer 
+\begin_inset Formula $K$
+\end_inset
+
+, then the term involving 
+\begin_inset Formula $m/2$
+\end_inset
+
+ compositions can be computed as the composition of two identical terms
+ each involving 
+\begin_inset Formula $m/4$
+\end_inset
+
+ compositions, and so on.
+ This leads to the following recursive algorithm:
+\begin_inset Formula 
+\begin{eqnarray*}
+\psi_{1} & = & \text{Id}+\frac{1}{2^{K}}\mathbf{u}\\
+\psi_{k} & = & \psi_{k-1}\circ\psi_{k-1}\qquad\text{for }k=2,\ldots,K\,.\\
+\exp(\mathbf{u}) & \simeq & \psi_{K}
+\end{eqnarray*}
+
+\end_inset
+
+With this simple algorithm, an excellent approximation of 
+\begin_inset Formula $\exp(\mathbf{u})$
+\end_inset
+
+ can be obtained in very few iterations (practical values of 
+\begin_inset Formula $K$
+\end_inset
+
+ are between 
+\begin_inset Formula $5$
+\end_inset
+
+ and 
+\begin_inset Formula $8$
+\end_inset
+
+).
+ 
+\end_layout
+
+\begin_layout Section
+Parametric DIR Methods
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:vnr-parametric"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Theory.
+\end_layout
+
+\begin_layout Standard
+Parametric techniques were among the earliest solutions to the problem of
+ DIR 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "bookstein89,rueckert99"
+literal "false"
+
+\end_inset
+
+, but they remain widely used today.
+ Several advanced software packages implementing parametric DIR exist, such
+ as 
+\family typewriter
+elastix
+\family default
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "klein09a"
+literal "false"
+
+\end_inset
+
+and
+\family typewriter
+ IRTK
+\family default
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "rueckert99"
+literal "false"
+
+\end_inset
+
+.
+ Parametric DIR methods are among the most accessible to newcomers in the
+ field because they do not require advanced mathematics, such as calculus
+ of variations, to describe.
+ 
+\end_layout
+
+\begin_layout Standard
+The central idea in parametric DIR methods is to model spatial transformations
+ 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ using families of continuous functions weighted by scalar coefficients.
+ In most general form, let 
+\begin_inset Formula $f_{1}:\Omega\rightarrow\mathbb{R},\ldots,f_{K}:\Omega\rightarrow\mathbb{R}$
+\end_inset
+
+ be some 
+\begin_inset Quotes eld
+\end_inset
+
+family
+\begin_inset Quotes erd
+\end_inset
+
+ of smooth functions.
+ Then in parametric DIR, we model 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ as a weighted sum of these functions with vector-valued coefficients 
+\begin_inset Formula $\theta_{1}\in\mathbb{R}^{n},\ldots,\theta_{K}\in\mathbb{R}^{n}$
+\end_inset
+
+:
+\begin_inset Formula 
+\begin{equation}
+\phi_{\theta}(\mathbf{x})=\mathbf{x}+\sum_{k=1}^{K}\mathbf{\theta}_{k}f_{k}(\mathbf{x})\,.\label{eq:parawsum}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Let us note some properties of this transformation:
+\end_layout
+
+\begin_layout Itemize
+When all the coefficients 
+\begin_inset Formula $\mathbf{\theta}_{k}$
+\end_inset
+
+ are zeros, 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ is the identity transform 
+\begin_inset Formula $\phi_{\theta}(\mathbf{x})=\mathbf{x}.$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+The transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ is a smooth (infinitely differentiable) function as long as each 
+\begin_inset Formula $f_{k}$
+\end_inset
+
+ is infinitely differentiable.
+\end_layout
+
+\begin_layout Itemize
+The transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ is completely determined by the set of coefficients 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula ${\mathbf{\theta}_{k}}.$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+With the appropriate choice of functions 
+\begin_inset Formula $f_{k}$
+\end_inset
+
+ and sufficiently large number of functions/coefficients 
+\begin_inset Formula $K$
+\end_inset
+
+, any smooth and bounded spatial transformation on domain 
+\begin_inset Formula $\Omega$
+\end_inset
+
+ can be approximated by the weighted sum (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:parawsum"
+
+\end_inset
+
+) with arbitrary accuracy.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figs/parametric_controls.png
+	lyxscale 20
+	width 70col%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Construction of a spatial transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ via interpolation.
+ A grid of control points 
+\begin_inset Formula $\{\mathbf{c}_{k}\}$
+\end_inset
+
+ is defined over the image domain 
+\begin_inset Formula $\Omega$
+\end_inset
+
+, and each control point is associated with a coefficient vector 
+\begin_inset Formula $\theta_{k}$
+\end_inset
+
+.
+ The spatial transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ at each point in 
+\begin_inset Formula $\Omega$
+\end_inset
+
+ is computed by interpolating the coefficient vectors, e.g., using radial
+ basis function interpolation or b-spline interpolation.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:vnr-parametric-concept"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Which family of functions should we choose? Perhaps the simplest of all
+ functions used in DIR is the family of 
+\emph on
+radial basis functions, 
+\emph default
+defined as follows.
+ Let 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\Omega$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ be a rectangular domain in 
+\begin_inset Formula $\mathbb{R}^{n}$
+\end_inset
+
+ and let 
+\begin_inset Formula $\mathbf{c}_{1}\in\Omega,\ldots,\mathbf{c}_{K}\in\Omega$
+\end_inset
+
+ be a set of points in this domain, called 
+\emph on
+control points.
+ 
+\emph default
+For example, control points may lie on a uniform grid, as in Figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:vnr-parametric-concept"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+ Associate each control point 
+\begin_inset Formula $\mathbf{c}_{k}$
+\end_inset
+
+ with a continuous function 
+\begin_inset Formula $f_{k}(\mathbf{x})$
+\end_inset
+
+:
+\begin_inset Formula 
+\[
+f_{k}(\mathbf{x})=\psi(|\mathbf{x}-\mathbf{c}_{k}|)\,,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\psi:\mathbb{R}\rightarrow\mathbb{R}$
+\end_inset
+
+ is some continuous function called the 
+\emph on
+kernel function
+\emph default
+.
+ Plugging this form 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $f_{k}(\mathbf{x})$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ into (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:parawsum"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+), we get the following expression for the spatial transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+:
+\begin_inset Formula 
+\[
+\phi_{\theta}(\mathbf{x})=\mathbf{x}+\sum_{k=1}^{K}\mathbf{\theta}_{k}\psi(|\mathbf{x}-\mathbf{c}_{k}|)\,.
+\]
+
+\end_inset
+
+As illustrated in Figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:vnr-parametric-concept"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, the transformation 
+\begin_inset Formula $\phi_{\theta}(\mathbf{x})$
+\end_inset
+
+ is a continuous function on the image domain that is fully determined by
+ the coefficients 
+\begin_inset Formula $\theta_{k}$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+A common choice of kernel function is the Gaussian 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\psi(r)=e^{-0.5r^{2}}$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+.
+ Notice that 
+\begin_inset Formula $f_{k}$
+\end_inset
+
+ above only depends on the distance from 
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+ to the control point 
+\begin_inset Formula $\mathbf{c}_{k}$
+\end_inset
+
+, i.e., it is radially symmetric around 
+\begin_inset Formula $\mathbf{c}_{k}$
+\end_inset
+
+.
+ Such functions are called 
+\emph on
+radial basis functions
+\emph default
+.
+ They were used in some of the earliest DIR papers 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "bookstein89"
+literal "false"
+
+\end_inset
+
+, and are just one example of a suitable family of functions for parametric
+ DIR.
+ Other choices are discussed later in this section.
+\end_layout
+
+\begin_layout Standard
+So far, what we have done was to model spatial transformations on the domain
+ 
+\begin_inset Formula $\Omega$
+\end_inset
+
+ using a 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $nK$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+-element vector of coefficients 
+\begin_inset Formula $\theta$
+\end_inset
+
+ 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $=\{\theta_{1}\ldots,\theta_{K}\}$
+\end_inset
+
+.
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ We can now formulate the DIR problem as the problem of finding the set
+ of values 
+\begin_inset Formula $\theta$
+\end_inset
+
+ that minimizes the dissimilarity between image 
+\begin_inset Formula $I$
+\end_inset
+
+ and the transformed image 
+\begin_inset Formula $J\circ\phi_{\theta}$
+\end_inset
+
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+:
+\begin_inset Formula 
+\[
+\theta^{*}=\argmin_{\theta\in\mathbb{R}^{nK}}E[\phi_{\theta};I,J]=\argmin_{\theta\in\mathbb{R}^{nK}}\mu[I,J\circ\phi_{\theta}]+\lambda\rho[\theta]\,.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+For simplicity, consider the mean squared intensity difference (MSID) metric
+ and no regularization.
+ Then the energy can be written down in complete form as:
+\begin_inset Formula 
+\begin{equation}
+\theta^{*}=\argmin_{\theta\in\mathbb{R}^{nK}}\int_{\Omega}\left[I(\mathbf{x})-J(\mathbf{\phi_{\theta}(x)})\right]^{2}\,\mathrm{d}\mathbf{x}\,=\argmin_{\theta\in\mathbb{R}^{nK}}\int_{\Omega}\left[I(\mathbf{x})-J(\mathbf{x}+\sum_{k=1}^{K}\mathbf{\theta}_{k}f_{k}(\mathbf{x}))\right]^{2}\,\mathrm{d}\mathbf{x}\,.\label{eq:min_pdir}
+\end{equation}
+
+\end_inset
+
+ This is an unconstrained energy minimization problem involving 
+\begin_inset Formula $nK$
+\end_inset
+
+ unknowns, and can be solved using gradient-based numerical optimization
+ methods.
+ For completeness, let us derive the partial derivative of the energy function
+ 
+\begin_inset Formula $E$
+\end_inset
+
+ with respect to the 
+\begin_inset Formula $m$
+\end_inset
+
+-th coefficient vector 
+\begin_inset Formula $\theta_{m}:$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\frac{\partial E}{\partial\theta_{m}}=2\int_{\Omega}\left[I(\mathbf{x})-J(\mathbf{x}+\sum_{k=1}^{K}\mathbf{\theta}_{k}f_{k}(\mathbf{x}))\right]\left[-\nabla J(\mathbf{x}+\sum_{k=1}^{K}\mathbf{\theta}_{k}f_{k}(\mathbf{x}))\cdot f_{m}(\mathbf{x})\right]\,\mathrm{d}\mathbf{x}\,,
+\]
+
+\end_inset
+
+ or, in more compact form:
+\begin_inset Formula 
+\begin{equation}
+\frac{\partial E}{\partial\theta_{m}}=-2\int_{\Omega}\left[I-J\circ\phi_{\theta}\right]\left[(\nabla J\circ\phi_{\theta})\cdot f_{m}\right]\,\mathrm{d}\mathbf{x}\,.\label{eq:grad_pdir}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Basic Implementation.
+\end_layout
+
+\begin_layout Standard
+Implementing the above DIR strategy on real discrete images is not difficult.
+ First, let us consider how to discretize the problem.
+ Images 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J$
+\end_inset
+
+ will be discrete images (
+\begin_inset Formula $n$
+\end_inset
+
+-dimensional arrays of intensity values).
+ The spatial transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ may be represented as a set of 
+\begin_inset Formula $n$
+\end_inset
+
+separate 
+\begin_inset Formula $n$
+\end_inset
+
+-dimensional images, one for each of the components of 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ (i.e., 
+\begin_inset Formula $\phi_{\theta}^{x},\phi_{\theta}^{y},\ldots$
+\end_inset
+
+).
+ The main operations in (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:min_pdir"
+
+\end_inset
+
+) and (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:grad_pdir"
+
+\end_inset
+
+) above are the computation of 
+\begin_inset Formula $\phi_{\theta}(\mathbf{x})$
+\end_inset
+
+ from the coefficients 
+\begin_inset Formula $\theta$
+\end_inset
+
+, the computation of 
+\begin_inset Formula $J\circ\phi_{\theta}$
+\end_inset
+
+, the computation of 
+\begin_inset Formula $\nabla J\circ\phi_{\theta}$
+\end_inset
+
+, and integration over the image domain.
+ Computing 
+\begin_inset Formula $J\circ\phi_{\theta}$
+\end_inset
+
+ in the discrete setting involves sampling the values of 
+\begin_inset Formula $J$
+\end_inset
+
+ at positions 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+.
+ In MATLAB, this is accomplished using the command 
+\family typewriter
+interpn
+\family default
+, which interpolates the values of an array at arbitrary sample points.
+\end_layout
+
+\begin_layout Subsection
+Real-World Approaches
+\end_layout
+
+\begin_layout Standard
+While the approach sketched out above is relatively simple, the same basic
+ principle is followed by the state-of-the-art parametric DIR techniques.
+ Modern techniques employ more efficient ways to parameterize spatial transforma
+tions, more advanced image dissimilarity metrics, incorporate multi-resolution
+ schemes, and provide options for regularizing the transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Paragraph
+Choice of basis functions.
+\end_layout
+
+\begin_layout Standard
+A significant limitation of the simple approach based on radial basis functions
+ is that 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ is expensive to compute, requiring 
+\begin_inset Formula $O(KN)$
+\end_inset
+
+ operations for an image with 
+\begin_inset Formula $N$
+\end_inset
+
+ pixels or voxels.
+ This is because each of the 
+\begin_inset Formula $K$
+\end_inset
+
+ basis functions 
+\begin_inset Formula $f_{k}$
+\end_inset
+
+ is evaluated at each voxel in (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:parawsum"
+
+\end_inset
+
+).
+ In fact, after discretization, the computation of 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ can be expressed in matrix form:
+\begin_inset Formula 
+\[
+\Phi_{\theta}=\mathrm{Id}+F\cdot\theta
+\]
+
+\end_inset
+
+ where 
+\begin_inset Formula $F$
+\end_inset
+
+ is a 
+\begin_inset Formula $N\times nK$
+\end_inset
+
+ matrix whose columns are the basis functions 
+\begin_inset Formula $f_{k}$
+\end_inset
+
+ evaluated at all voxels, 
+\begin_inset Formula $\Phi_{\theta}$
+\end_inset
+
+ is an 
+\begin_inset Formula $N\times n$
+\end_inset
+
+ matrix describing the transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ at every voxel, and 
+\begin_inset Formula $\mathrm{Id}$
+\end_inset
+
+ is an 
+\begin_inset Formula $N\times n$
+\end_inset
+
+ matrix representing the identity transformation, i.e., each row in 
+\begin_inset Formula $\mathrm{Id}$
+\end_inset
+
+ contains the coordinates of the corresponding voxel.
+ To make this computation more efficient, real-world algorithms use basis
+ functions 
+\begin_inset Formula $\{f_{k}\}$
+\end_inset
+
+ that have 
+\emph on
+finite support, 
+\emph default
+meaning that each 
+\begin_inset Formula $f_{k}$
+\end_inset
+
+ is non-zero on only a small subset 
+\begin_inset Formula $\Omega_{k}$
+\end_inset
+
+ of the image domain 
+\begin_inset Formula $\Omega$
+\end_inset
+
+.
+ In this case, the computational cost of computing 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ is 
+\begin_inset Formula $O(Km)$
+\end_inset
+
+, where 
+\begin_inset Formula $m\ll N$
+\end_inset
+
+ is the average size of the domains 
+\begin_inset Formula $\{\Omega_{k}\}.$
+\end_inset
+
+ This is equivalent to having 
+\begin_inset Formula $F$
+\end_inset
+
+ be a sparse matrix.
+ 
+\end_layout
+
+\begin_layout Standard
+Rueckert et al.
+ 
+\family typewriter
+
+\begin_inset CommandInset citation
+LatexCommand cite
+key "rueckert99"
+literal "true"
+
+\end_inset
+
+
+\family default
+ popularized the use of cubic 
+\emph on
+b-splines
+\emph default
+ as the basis for parametric DIR.
+ These bi-cubic (or in 3D, tri-cubic) polynomials are parameterized in terms
+ of a uniform grid of control points, and have finite support, such that
+ each control point influences a 
+\begin_inset Formula $4\times4$
+\end_inset
+
+ grid cell region around it, and has no effect on 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ outside of this region.
+ Techniques like 
+\family typewriter
+IRTK 
+\family default
+
+\begin_inset CommandInset citation
+LatexCommand cite
+key "rueckert99"
+literal "true"
+
+\end_inset
+
+
+\family typewriter
+, NiftyReg 
+\family default
+
+\begin_inset CommandInset citation
+LatexCommand cite
+key "modat10"
+literal "false"
+
+\end_inset
+
+ and 
+\family typewriter
+elastix
+\family default
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "klein09a"
+literal "false"
+
+\end_inset
+
+ use 
+\emph on
+b-splines
+\emph default
+ to represent spatial transformations.
+\end_layout
+
+\begin_layout Paragraph
+Support for advanced metrics.
+\end_layout
+
+\begin_layout Standard
+Important practical considerations in the development of parametric DIR
+ tools is support for multiple image dissimilarity metrics, such as the
+ mutual information metric 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "wells96,maes97,studholme99"
+literal "false"
+
+\end_inset
+
+ (for across-modality registration), patch-wise cross-correlation metric
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "hill94,avants07media"
+literal "false"
+
+\end_inset
+
+, and other advanced metrics.
+ When using more advanced metrics, the computation of the partial derivatives
+ 
+\begin_inset Formula $\frac{\partial E}{\partial\theta_{m}}$
+\end_inset
+
+ becomes more complex.
+ When DIR is implemented using arbitrary metric 
+\begin_inset Formula $\mu[I,J]$
+\end_inset
+
+, i.e., 
+\begin_inset Formula 
+\[
+E[\phi_{\theta};I,J]=\mu[I,J\circ\phi_{\theta}]\,,
+\]
+
+\end_inset
+
+the partial derivatives have the form
+\begin_inset Formula 
+\[
+\frac{\partial E}{\partial\theta_{m}}=\int_{\Omega}(\delta_{J}\mu[I,J\circ\phi_{\theta}])\cdot(\nabla J\circ\phi_{\theta})f_{m}\,\mathrm{d}\mathbf{x}\,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\delta_{J}\mu:\Omega\rightarrow\mathbb{R}$
+\end_inset
+
+ denotes the partial Gateaux derivative of 
+\begin_inset Formula $\mu$
+\end_inset
+
+ with respect to its second input.
+ Whereas in rigid and affine registration derivatives of the registration
+ objective function can be approximated numerically, in parametric DIR there
+ are many more parameters, and numeric computation of derivatives becomes
+ prohibitively expensive.
+ For mutual information and cross-correlation
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+ metrics, efficient schemes for computing gradients exist, but are outside
+ of the scope of this book.
+ 
+\end_layout
+
+\begin_layout Paragraph
+Multi-resolution schemes.
+\end_layout
+
+\begin_layout Standard
+Multi-resolution is one of the most effective tools in real-world DIR.
+ A multi-resolution pyramid of images is generated from 
+\begin_inset Formula $I$
+\end_inset
+
+and 
+\begin_inset Formula $J$
+\end_inset
+
+, typically by subsampling by the factor 2 in each dimension several times.
+ For example, if 
+\begin_inset Formula $I$
+\end_inset
+
+ has dimensions 
+\begin_inset Formula $256\times256$
+\end_inset
+
+, the pyramid may contain images of sizes 
+\begin_inset Formula $32\times32$
+\end_inset
+
+, 
+\begin_inset Formula $64\times64$
+\end_inset
+
+, 
+\begin_inset Formula $128\times128$
+\end_inset
+
+, and 
+\begin_inset Formula $256\times256$
+\end_inset
+
+.
+ Parametric DIR is performed at the lowest resolution first, and the resulting
+ low-resolution transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ is interpolated by the factor of 2 to initialize parametric DIR at the
+ next resolution level, and so on.
+ The number of control points 
+\begin_inset Formula $K$
+\end_inset
+
+ typically also scales with the resolution.
+ Multi-resolution not only helps DIR converge faster but helps avoid local
+ minima at early stages of registration by matching more prominent features
+ in the images that are visible at low resolution.
+ When subsampling images for multi-resolution schemes, it is important to
+ low-pass filter them appropriately to avoid excessive aliasing due to sampling
+ under the Nyquist frequency (
+\series bold
+Chapter XXX
+\series default
+).
+ An advantage of low-pass filtering is that numerical approximation of 
+\begin_inset Formula $\nabla J$
+\end_inset
+
+ is more accurate, and hence 
+\begin_inset Formula $\nabla E$
+\end_inset
+
+ is more accurate as well, leading to better optimization convergence.
+\end_layout
+
+\begin_layout Paragraph
+Regularization.
+\end_layout
+
+\begin_layout Standard
+Additional terms can be added to the parametric DIR objective function to
+ impose desired properties on 
+\begin_inset Formula $\phi_{\theta}.$
+\end_inset
+
+ For instance, it may be desirable to obtain transformations that approximately
+ preserve local area or volume of structures.
+ Mathematically the amount by which the transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ expands or compresses the area/volume of an infinitesimal region around
+ a point 
+\begin_inset Formula $\mathbf{x}\in\Omega$
+\end_inset
+
+ is given by the 
+\emph on
+determinant of the Jacobian matrix 
+\emph default
+of 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ (denoted 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\left|D\phi_{\theta}\right|$
+\end_inset
+
+).
+ When 
+\begin_inset Formula $\left|D\phi_{\theta}\right|<1$
+\end_inset
+
+, the transformation compresses space around a point, and when 
+\begin_inset Formula $\left|D\phi_{\theta}\right|>1$
+\end_inset
+
+, it expands space.
+ 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+A regularization term may then be formulated to penalize the deviation of
+ 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\left|D\phi_{\theta}\right|$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ from 
+\begin_inset Formula $1$
+\end_inset
+
+, thus favoring transformations that do not compress or expand space too
+ much.
+\begin_inset Formula 
+\[
+\theta^{*}=\arg\min_{\theta\in\mathbb{R}^{n\cdot K}}\mu[I,J\circ\phi_{\theta}]\,+\lambda\int_{\Omega}\left(\left|D\phi_{\theta}\right|-1\right)^{2}\,\mathrm{d}\mathbf{x}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+An interesting point is that in the parametric DIR framework, it is difficult
+ to enforce strong constraints on the transformation 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+, i.e., requiring 
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ to be strictly incompressible (
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\left|D\phi_{\theta}\right|=1$
+\end_inset
+
+ at every point).
+ Since 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+
+\begin_inset Formula $\phi_{\theta}$
+\end_inset
+
+ is formed as a weighted sum of basis functions 
+\begin_inset Formula $f_{k}$
+\end_inset
+
+, 
+\end_layout
+
+\begin_layout Section
+Optical Flow and Related Non-Parametric Methods
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:vnr-oflow"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Optical flow is a class of techniques used to measure the velocity of moving
+ objects in video sequences.
+ For example, in a self-driving car application, the continuous video feed
+ from the car's camera could be used to determine the velocity of surrounding
+ vehicles and pedestrians.
+ In medical imaging, optical flow can be used to characterize the dynamics
+ of moving organs, such as the beating heart in cine MRI.
+ This application of optical flow is explored in Chapter XXX.
+ But optical flow also serves as a great way to introduce non-parametric
+ DIR algorithms.
+ 
+\end_layout
+
+\begin_layout Subsection
+Classical Optical Flow 
+\end_layout
+
+\begin_layout Standard
+Let 
+\begin_inset Formula ${\cal I}(\mathbf{x},t):\mathbb{R}^{n}\times[0,t_{\mathrm{max}}]\rightarrow\mathbb{R}$
+\end_inset
+
+ denote an image changing over time, i.e., a video sequence, where time 
+\begin_inset Formula $t$
+\end_inset
+
+ spans the interval 
+\begin_inset Formula $[0,t_{\mathrm{max}}]$
+\end_inset
+
+.
+ The objective of optical flow is to determine at each point in space and
+ time a vector 
+\begin_inset Formula $\vec{v}(\mathbf{x},t)$
+\end_inset
+
+ that describes the instantaneous velocity of the object located at point
+ 
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+ at time 
+\begin_inset Formula $t$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figs/oflow_concept.png
+	lyxscale 20
+	width 70col%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Intensity preservation in optical flow.
+ The anatomical location at location 
+\begin_inset Formula $\mathbf{x}_{0}$
+\end_inset
+
+ at time 
+\begin_inset Formula $t_{0}$
+\end_inset
+
+ has moved to position 
+\begin_inset Formula $\mathbf{x}_{0}+\delta\mathbf{x}$
+\end_inset
+
+ at time 
+\begin_inset Formula $t_{0}+\delta t$
+\end_inset
+
+.
+ We assume that the image intensity associated with this anatomical location
+ is the same at time 
+\begin_inset Formula $t_{0}$
+\end_inset
+
+ and at time 
+\begin_inset Formula $t_{0}+\delta t$
+\end_inset
+
+.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:vnr-oflow-concept"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The classical optical flow method was proposed by Horn and Schunck in 1981
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "horn81"
+literal "true"
+
+\end_inset
+
+ and is summarized below.
+\end_layout
+
+\begin_layout Subsubsection
+Preservation of Intensity Assumption
+\end_layout
+
+\begin_layout Standard
+The optical flow approach is based on the following assumption: 
+\emph on
+as objects move in the video sequence, their intensity remains nearly constant
+\emph default
+ (Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:vnr-oflow-concept"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
+ In general computer vision problems, this is a strong assumption because
+ the shading of objects changes as they move through the scene and because
+ objects may become occluded by other objects.
+ In 3D medical image sequences this assumption is more reasonable, although
+ noise and partial volume artifacts introduce small changes in the intensity
+ of objects as they move.
+ 
+\end_layout
+
+\begin_layout Standard
+To express the assumption of intensity preservation mathematically, let
+ us consider two images taken a short time apart, 
+\begin_inset Formula $I(\mathbf{x},t_{0})$
+\end_inset
+
+ and 
+\begin_inset Formula $I(\mathbf{x},t_{0}+\delta t$
+\end_inset
+
+).
+ Suppose that a point at location 
+\begin_inset Formula $\mathbf{x}_{0}$
+\end_inset
+
+ at time 
+\begin_inset Formula $t_{0}$
+\end_inset
+
+ has moved to a new location 
+\begin_inset Formula $\mathbf{x}_{0}+\delta\mathbf{x}$
+\end_inset
+
+ at time 
+\begin_inset Formula $t_{0}+\delta t$
+\end_inset
+
+.
+ Since, under our assumption, the intensity of the point 
+\begin_inset Formula $\mathbf{x}_{0}$
+\end_inset
+
+ is preserved at its new location 
+\begin_inset Formula $\mathbf{x}_{0}+\delta\mathbf{x}$
+\end_inset
+
+, we have
+\begin_inset Formula 
+\[
+I(\mathbf{x}_{0}+\delta\mathbf{x},t_{0}+\delta t)=I(\mathbf{x}_{0},t_{0})\,.
+\]
+
+\end_inset
+
+The expression on the left of the equality can be expanded using Taylor's
+ series as follows:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{multline*}
+I(\mathbf{x}_{0}+\delta\mathbf{x},t_{0}+\delta t)=\\
+=I(\mathbf{x}_{0},t_{0}+\delta t)+(\delta\mathbf{x})^{T}I_{\mathbf{x}}(\mathbf{x}_{0},t_{0}+\delta t)+{\cal O}(\delta{}^{2})=\\
+=I(\mathbf{x}_{0},t_{0})+(\delta\mathbf{x})^{T}I_{\mathbf{x}}(\mathbf{x}_{0},t_{0})+(\delta t)I_{t}(\mathbf{x}_{0},t_{0})+{\cal O}(\delta^{2})\,,
+\end{multline*}
+
+\end_inset
+
+where 
+\begin_inset Formula $I_{\mathbf{x}}$
+\end_inset
+
+ and 
+\begin_inset Formula $I_{t}$
+\end_inset
+
+ denote the partial derivatives of 
+\begin_inset Formula $I$
+\end_inset
+
+ with respect to 
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+ and 
+\begin_inset Formula $t$
+\end_inset
+
+, and 
+\begin_inset Formula ${\cal O}(\delta^{2})$
+\end_inset
+
+ represents second and higher-order terms involving 
+\begin_inset Formula $\delta\mathbf{x}$
+\end_inset
+
+ and 
+\series bold
+
+\begin_inset Formula $\delta t$
+\end_inset
+
+
+\series default
+.
+ Subtracting the first of the two equations above from the second, we obtain
+\begin_inset Formula 
+\[
+0=(\delta\mathbf{x})^{T}I_{\mathbf{x}}(\mathbf{x}_{0},t_{0})+(\delta t)I_{t}(\mathbf{x}_{0},t_{0})+{\cal O}(\delta^{2})\,,
+\]
+
+\end_inset
+
+and dividing through by 
+\begin_inset Formula $\Delta t$
+\end_inset
+
+, we have
+\begin_inset Formula 
+\[
+\left(\frac{\delta\mathbf{x}}{\delta t}\right)^{T}I_{\mathbf{x}}(\mathbf{x}_{0},t_{0})=-I_{t}(\mathbf{x}_{0},t_{0})+{\cal O}(\delta)\,.
+\]
+
+\end_inset
+
+Now let us consider the limit of this expression as 
+\begin_inset Formula $\Delta t\rightarrow0$
+\end_inset
+
+.
+ The expression 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\frac{\Delta\mathbf{x}}{\Delta t}$
+\end_inset
+
+ is the ratio between the distance an object travels over a short time interval
+ 
+\begin_inset Formula $\Delta t$
+\end_inset
+
+ and the said time interval, and as 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+
+\begin_inset Formula $\Delta t\rightarrow0$
+\end_inset
+
+, it converges to the instantaneous velocity of the object, 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\vec{v}(\mathbf{x}_{0},t_{0})$
+\end_inset
+
+, which is exactly the quantity that we seek to estimate in optical flow.
+ 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+Also, the limit of 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula ${\cal O}(\delta)$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+as 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+
+\begin_inset Formula $\delta t\rightarrow0$
+\end_inset
+
+ is zero.
+ Hence, in the limit, the expression above simplifies to
+\begin_inset Formula 
+\[
+\vec{v}(\mathbf{x}_{0},t_{0})^{T}I_{\mathbf{x}}(\mathbf{x}_{0},t_{0})=-I_{t}(\mathbf{x}_{0},t_{0})\,,
+\]
+
+\end_inset
+
+or just
+\begin_inset Formula 
+\begin{equation}
+\vec{v}^{T}I_{\mathbf{x}}=-I_{t}\,.\label{eq:optflowcon}
+\end{equation}
+
+\end_inset
+
+This linear relationship between velocity 
+\begin_inset Formula $\vec{v}$
+\end_inset
+
+, image gradient 
+\begin_inset Formula $I_{\mathbf{x}}$
+\end_inset
+
+ and image time derivative 
+\begin_inset Formula $I_{t}$
+\end_inset
+
+ is called the 
+\emph on
+optical flow constraint.
+ 
+\emph default
+Geometrically, this constraint specifies that at every point 
+\begin_inset Formula $\mathbf{x}_{0}$
+\end_inset
+
+, the tip of the velocity vector 
+\begin_inset Formula $\vec{v}$
+\end_inset
+
+ must lie on a certain line (in 2D), plane (in 3D) or hyper-plane (in ND)
+ that is orthogonal to the image gradient at 
+\begin_inset Formula $\mathbf{x}_{0}$
+\end_inset
+
+, as illustrated in Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:vnr-oflow-dotproduct"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+ Importantly, the restriction of 
+\begin_inset Formula $\vec{v}$
+\end_inset
+
+ onto a certain line/plane is not enough to determine 
+\begin_inset Formula $\vec{v}$
+\end_inset
+
+ uniquely (except if 
+\begin_inset Formula $n=1$
+\end_inset
+
+).
+ At each point 
+\begin_inset Formula $(\mathbf{x}_{0},t_{0})$
+\end_inset
+
+ the velocity vector 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\vec{v}(\mathbf{x}_{0},t_{0})$
+\end_inset
+
+ may take as many different values as there are different points in 
+\begin_inset Formula $\mathbb{R}^{n-1}$
+\end_inset
+
+.
+ Additional assumptions are required in order to uniquely determine 
+\begin_inset Formula $\vec{v}(\mathbf{x},t)$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figs/oflow_dotproduct.png
+	lyxscale 20
+	width 70col%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+The intensity preservation constraint implies that the velocity vector 
+\begin_inset Formula $v$
+\end_inset
+
+ is constrained to lie on a line (plane in 3D), but does not uniquely determine
+ it.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:vnr-oflow-dotproduct"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Smoothness Assumption and Formulation As Energy Minimization
+\end_layout
+
+\begin_layout Standard
+Given that the intensity preservation assumption is not enough to determine
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+ 
+\begin_inset Formula $\vec{v}(\mathbf{x},t)$
+\end_inset
+
+,
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ Horn and Schunck 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "horn81"
+literal "true"
+
+\end_inset
+
+ proposed an additional assumption: that the velocity field
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+ 
+\begin_inset Formula $\vec{v}(\mathbf{x},t)$
+\end_inset
+
+ is smooth across the image domain.
+ Rather than formulating this assumption as a hard constraint, they reformulate
+ the optical flow problem as an energy minimization problem in which violations
+ of the optical flow assumption and smoothness assumption are both penalized.
+\end_layout
+
+\begin_layout Standard
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+Going forward, let us focus on a particular moment in time, 
+\begin_inset Formula $t_{0}$
+\end_inset
+
+ and let 
+\begin_inset Formula $\vec{v}(\mathbf{x})=\vec{v}(\mathbf{x},t_{0})$
+\end_inset
+
+.
+ 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+Horn and Schunck's 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "horn81"
+literal "true"
+
+\end_inset
+
+ optical flow minimization is formulated as 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula 
+\begin{equation}
+\vec{v}^{*}=\argmin\limits _{\hat{v}\in{\cal V}^{n}}E[\vec{v}]\,,\quad\text{where}\quad E[\vec{v}]=\int_{\Omega}\left(\vec{v}^{T}I_{\mathbf{x}}+I_{t}\right)^{2}+\lambda^{2}\sum_{i=1}^{n}\sum_{j=1}^{n}\left(\frac{\partial v^{i}}{\partial x_{j}}\right)^{2}\,\mathrm{d}\mathbf{x}.\label{eq:horn_energy}
+\end{equation}
+
+\end_inset
+
+The left part of the integrand drives 
+\begin_inset Formula $\vec{v}$
+\end_inset
+
+ to satisfy the intensity preservation assumption (i.e., the more the assumption
+ is violated, the greater the value of the energy 
+\begin_inset Formula $E$
+\end_inset
+
+ becomes).
+ The right hand of the integrand drives 
+\begin_inset Formula $\vec{v}$
+\end_inset
+
+ to be smooth, since discontinuities in 
+\begin_inset Formula $\vec{v}$
+\end_inset
+
+ are associated with large values of the partial derivatives 
+\begin_inset Formula $\frac{\partial v_{i}}{\partial x_{j}}$
+\end_inset
+
+.
+ The positive scalar 
+\begin_inset Formula $\lambda$
+\end_inset
+
+ is a coefficient of the method, and is used to balance between the two
+ terms; larger values of 
+\begin_inset Formula $\lambda$
+\end_inset
+
+ result in smoother solutions.
+ 
+\end_layout
+
+\begin_layout Standard
+The energy functional (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:horn_energy"
+
+\end_inset
+
+) is minimized using variational techniques (
+\series bold
+Section XXX
+\series default
+).
+ The Euler-Lagrange equation for 
+\begin_inset Formula $E$
+\end_inset
+
+ is 
+\begin_inset Formula 
+\[
+{\cal L}[\vec{v}]=\left(\vec{v}^{T}I_{\mathbf{x}}+I_{t}\right)I_{\mathbf{x}}-\lambda^{2}\triangle\vec{v}=\mathbf{0}\,,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\triangle$
+\end_inset
+
+ is the Laplacian operator.
+ Like in most variational problems involving images, we solve the problem
+ (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:energy"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) iteratively by taking small steps in the direction of 
+\begin_inset Formula $-{\cal L}(\vec{v})$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figs/oflow_result.png
+	lyxscale 20
+	width 100col%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Horn and Schunck optical flow method applied to a pair of images.
+ The red arrows in the last panel show the estimated velocity field.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:vnr-oflow-result"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Basic Implementation
+\end_layout
+
+\begin_layout Standard
+The discretization and implementation of the optical flow algorithm is relativel
+y easy.
+ First, we must discretize over time.
+ Instead of a continuous image 
+\begin_inset Formula $I(\mathbf{x},t)$
+\end_inset
+
+, we consider a pair of 
+\begin_inset Formula $n$
+\end_inset
+
+-dimensional images 
+\begin_inset Formula $J_{0}=I(\mathbf{x},t_{0})$
+\end_inset
+
+ and 
+\begin_inset Formula $J_{1}=I(\mathbf{x},t_{0}+\delta t)$
+\end_inset
+
+.
+ The first-order approximation of the time derivative of 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $I(\mathbf{x},t)$
+\end_inset
+
+ is
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+
+\begin_inset Formula 
+\[
+I_{t}\simeq\frac{J_{1}-J_{0}}{\delta t}\,,
+\]
+
+\end_inset
+
+and the spatial gradient of 
+\begin_inset Formula $I(\mathbf{x},t)$
+\end_inset
+
+ at time 
+\begin_inset Formula $t_{0}$
+\end_inset
+
+ is simply given by 
+\begin_inset Formula $I_{\mathbf{x}}=\nabla J_{0}$
+\end_inset
+
+.
+ Hence, 
+\begin_inset Formula 
+\[
+{\cal L}[\vec{v}]\simeq\left(\vec{v}^{T}\nabla J_{0}+\frac{J_{1}-J_{0}}{\delta t}\right)\nabla J_{0}-\lambda^{2}\triangle\vec{v}\,.
+\]
+
+\end_inset
+
+Calculating this quantity involves approximation of the second derivatives
+ of 
+\begin_inset Formula $\vec{v}$
+\end_inset
+
+ using finite differences (
+\series bold
+Section XXX
+\series default
+).
+ Code listing XXX gives an example implementation of optical flow for two-dimens
+ional images, and Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:vnr-oflow-result"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ gives examples of velocity estimation from a pair of cardiac cine MRI frames.
+ Note how the velocity field seems to capture the compression of the left
+ ventricle and even some of the heart's twisting motion.
+ 
+\end_layout
+
+\begin_layout Subsubsection
+Limitations of Optical Flow
+\end_layout
+
+\begin_layout Standard
+A major limitation of optical flow is that the optical flow constraint loses
+ its influence over homogeneous regions in the image.
+ When a large region 
+\begin_inset Formula $R\subset\Omega$
+\end_inset
+
+ of the image has nearly constant intensity, both the image gradient 
+\begin_inset Formula $I_{\mathbf{x}}$
+\end_inset
+
+ and the image time derivative 
+\begin_inset Formula $I_{t}$
+\end_inset
+
+ vanish on the interior of 
+\begin_inset Formula $R$
+\end_inset
+
+.
+ As the result, for any choice of 
+\begin_inset Formula $\vec{v}$
+\end_inset
+
+ over the interior of 
+\begin_inset Formula $R$
+\end_inset
+
+, the first term in (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:horn_energy"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+), 
+\begin_inset Formula $\left(\vec{v}^{T}I_{\mathbf{x}}+I_{t}\right)^{2}$
+\end_inset
+
+ will be nearly zero, and hence, the minimization of 
+\begin_inset Formula $E$
+\end_inset
+
+ is almost exclusively driven by the regularization term over the interior
+ of 
+\begin_inset Formula $R$
+\end_inset
+
+.
+ This results in surprising, and almost certainly wrong, estimates of velocity
+ over homogeneous regions, with greater velocity at the boundary of the
+ constant intensity regions than on the interior.
+ This is demonstrated in Fig.
+\begin_inset space ~
+\end_inset
+
+XXX, where several homogeneous objects are displaced rigidly in the image
+ plane.
+ The recovered velocity field is not at all consistent with rigid motion.
+ 
+\end_layout
+
+\begin_layout Subsection
+Non-Parametric DIR using Iterative Optical Flow
+\end_layout
+
+\begin_layout Subsubsection
+Conceptual DIR Algorithm based on Optical Flow
+\end_layout
+
+\begin_layout Standard
+While optical flow can be useful in medical imaging applications for describing
+ the dynamics of moving organs, it is not considered a DIR technique per
+ se.
+ Optical flow only computes an infinitesimal velocity between two timeframes
+ in a video sequence, whereas DIR seeks a deformation of the domain 
+\begin_inset Formula $\Omega$
+\end_inset
+
+ that would match up corresponding anatomical locations between two images.
+ These corresponding locations may be quite far apart from each other, requiring
+ a potentially 
+\begin_inset Quotes eld
+\end_inset
+
+large
+\begin_inset Quotes erd
+\end_inset
+
+ deformation to match them.
+\end_layout
+
+\begin_layout Standard
+However, it turns out that optical flow can be used as a building block
+ for an effective non-parametric DIR algorithm.
+ Consider the following iterative algorithm:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float algorithm
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $I$
+\end_inset
+
+ be the fixed image and 
+\begin_inset Formula $J$
+\end_inset
+
+ the moving image.
+ Let 
+\begin_inset Formula $J^{0}=J$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Enumerate
+Iterate for 
+\begin_inset Formula $i=0,1,\ldots$
+\end_inset
+
+ :
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Compute optical flow 
+\begin_inset Formula $\vec{v}^{i}$
+\end_inset
+
+ between images 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $J^{i+1}(\mathbf{x})=J^{i}(\mathbf{x}+\epsilon\vec{v}^{i})$
+\end_inset
+
+ where 
+\begin_inset Formula $\epsilon$
+\end_inset
+
+ is a (small) constant
+\end_layout
+
+\begin_layout Enumerate
+Terminate if the difference between 
+\begin_inset Formula $J^{i+1}$
+\end_inset
+
+ and 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+ is below threshold
+\end_layout
+
+\end_deeper
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+A skeleton of a DIR algorithm based on Optical Flow.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The basic idea of this algorithm is as follows.
+ At every iteration, the velocity field 
+\begin_inset Formula $\vec{v}^{i}$
+\end_inset
+
+ obtained by performing optical flow between images 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+ can be interpreted as the direction in which objects in 
+\begin_inset Formula $I$
+\end_inset
+
+ would move if 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+ were frames from a video.
+ Even if 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+ are not frames from a video but have similar content (e.g.
+ both are images of brains), the vectors 
+\begin_inset Formula $\vec{v}^{i}$
+\end_inset
+
+ may be expected to point from locations in 
+\begin_inset Formula $I$
+\end_inset
+
+ toward similarly-appearing locations in 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+.
+ This is, of course, a strong assumption.
+ If this assumption is true, then moving the locations in 
+\begin_inset Formula $I$
+\end_inset
+
+ a small amount along the vectors 
+\begin_inset Formula $\vec{v}^{i}$
+\end_inset
+
+ would place them closer to their corresponding anatomical counterparts
+ in 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+.
+ Conversely, deforming the image 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+ by the 
+\begin_inset Quotes eld
+\end_inset
+
+small
+\begin_inset Quotes erd
+\end_inset
+
+ transformation 
+\begin_inset Formula $J^{i+1}(\mathbf{x})=J^{i}(\mathbf{x}+\epsilon\vec{v}^{i})$
+\end_inset
+
+ would result in the new image 
+\begin_inset Formula $J^{i+1}$
+\end_inset
+
+ being better anatomically matched up with 
+\begin_inset Formula $I$
+\end_inset
+
+ than 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+.
+ Repeating this process iteratively until convergence would result in an
+ image 
+\begin_inset Formula $J^{M}$
+\end_inset
+
+ that is most similar anatomically to 
+\begin_inset Formula $I$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+In practice it turns out that the strong assumption above is actually not
+ unreasonable, and the general algorithm outlined above works quite well
+ for DIR.
+ However, the algorithm above is just a conceptual sketch, not a practical
+ DIR algorithm.
+ One crucial limitation is that at each iteration the image 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+ is interpolated, which over just a few iterations would completely degrade
+ the image due to aliasing (Chapter XXX).
+ Also, the algorithm does not actually yield any spatial transformation,
+ just a deformed image 
+\begin_inset Formula $J^{M}$
+\end_inset
+
+.
+ These two limitations can be easily addressed by a small modification to
+ the algorithm:
+\begin_inset Float algorithm
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $I$
+\end_inset
+
+ be the fixed image and 
+\begin_inset Formula $J$
+\end_inset
+
+ the moving image.
+ Let 
+\begin_inset Formula $J^{0}=J$
+\end_inset
+
+ and 
+\begin_inset Formula $\phi^{0}=\mathrm{Id}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Enumerate
+Iterate for 
+\begin_inset Formula $i=0,\ldots,M$
+\end_inset
+
+:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Compute optical flow 
+\begin_inset Formula $\vec{v}^{i}$
+\end_inset
+
+ between images 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $\psi^{i}=\mathrm{Id}+\epsilon\vec{v}^{i}$
+\end_inset
+
+, i.e., 
+\begin_inset Formula $\psi^{i}(\mathbf{x})=\mathbf{x+\epsilon}\vec{v}^{i}(\mathbf{x})$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $\phi^{i+1}=$
+\end_inset
+
+
+\begin_inset Formula $\phi^{i}\circ\psi^{i}$
+\end_inset
+
+, i.e., 
+\begin_inset Formula $\phi^{i+1}(\mathbf{x})=\phi^{i}(\mathbf{x+\epsilon}\vec{v}^{i}(\mathbf{x}))$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $J^{i+1}=J^{0}\circ\phi^{i+1}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+Terminate if the difference between 
+\begin_inset Formula $J^{i+1}$
+\end_inset
+
+ and 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+ is below threshold
+\end_layout
+
+\end_deeper
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Conceptual DIR algorithm based on Optical Flow.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note that the two algorithms are identical in terms of the outputs 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+ when the input images are continuous functions.
+ However, when it comes to practical implementation, the difference is significa
+nt! The first algorithm interpolates the moving image repeatedly, whereas
+ in the second algorithm, the moving image is only interpolated once, and
+ the spatial transformations 
+\begin_inset Formula $\phi^{i}$
+\end_inset
+
+ are composed repeatedly, which involves interpolation.
+ It turns out that the latter is less problematic, particularly because
+ in practice additional smoothing will be applied to these spatial transformatio
+ns to limit aliasing.
+\end_layout
+
+\begin_layout Subsubsection
+The Demons Algorithm
+\end_layout
+
+\begin_layout Standard
+The idea of using optical flow as a step in a DIR algorithm was pioneered
+ by J.P.
+ Thirion 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "thirion96"
+literal "false"
+
+\end_inset
+
+ in an approach he called 
+\begin_inset Quotes eld
+\end_inset
+
+Demons
+\begin_inset Quotes erd
+\end_inset
+
+, in reference to a famous thought experiment in Maxwell's theory of thermodynam
+ics.
+ One obvious limitation that Thirion's approach overcame is the computational
+ inefficiency of the algorithm above:
+\emph on
+ at each iteration it requires us to solve the optical flow problem, which
+ itself requires iterative optimization!
+\emph default
+ This double iteration would be impractical for real-world registration
+ problems.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figs/demons_contours.png
+	lyxscale 20
+	width 100col%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Additional optical constraint proposed in the Demons method 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "thirion96"
+literal "false"
+
+\end_inset
+
+.
+ The optical flow condition dictates that points on a given iso-intensity
+ contour in 
+\begin_inset Formula $I$
+\end_inset
+
+ at time 
+\begin_inset Formula $t$
+\end_inset
+
+ (bold curve, i.e., a set of all points that have intensity 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ at time 
+\begin_inset Formula $t$
+\end_inset
+
+) has to map to some point on the corresponding contour in the image at
+ time 
+\begin_inset Formula $t+\delta t$
+\end_inset
+
+.
+ The Demons method introduces an additional constraint, that points at time
+ 
+\begin_inset Formula $t$
+\end_inset
+
+ should map onto the 
+\emph on
+closest point
+\emph default
+ on the corresponding contour at time 
+\begin_inset Formula $t+\delta t$
+\end_inset
+
+.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:vnr-demons-contours"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Thirion proposed to estimate optical flow in a simpler and more efficient
+ way than in the Horn an Schunck method 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "horn81"
+literal "false"
+
+\end_inset
+
+.
+ The optical flow intensity preservation condition (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:optflowcon"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) can be interpreted as saying that points on any iso-intensity contour
+ of the image at time 
+\begin_inset Formula $t$
+\end_inset
+
+ (i.e., points that satisfy 
+\begin_inset Formula $I(\mathbf{x},t)=\alpha$
+\end_inset
+
+ for some scalar 
+\begin_inset Formula $\alpha$
+\end_inset
+
+) should map to points somewhere on the corresponding contour in the image
+ at time 
+\begin_inset Formula $t+\delta t$
+\end_inset
+
+ (Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:vnr-demons-contours"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+a).
+ Thirion proposed to strengthen this constraint, by requiring these points
+ on the contour at time 
+\begin_inset Formula $t$
+\end_inset
+
+ to map to the 
+\emph on
+closest point 
+\emph default
+on the contour at time 
+\begin_inset Formula $t+\delta t$
+\end_inset
+
+ (Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:vnr-demons-contours"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+b).
+ This is equivalent to requiring 
+\begin_inset Formula $\vec{v}$
+\end_inset
+
+ to be perpendicular to the contour, or parallel to 
+\begin_inset Formula $I_{\mathbf{x}}$
+\end_inset
+
+, since the gradient of a function is orthogonal to its iso-intensity contours.
+ Introducing the additional constraint 
+\begin_inset Formula $\vec{v}\parallel I_{\mathbf{x}}$
+\end_inset
+
+ makes it possible to solve directly for 
+\begin_inset Formula $\vec{v}$
+\end_inset
+
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+y\begin{cases}
+\vec{v}^{T}I_{\mathbf{x}}=-I_{t}\\
+\vec{v}\parallel I_{\mathbf{x}}
+\end{cases}\quad\Longrightarrow\quad\vec{v}=\frac{-I_{t}}{|I_{\mathbf{x}}|^{2}}I_{\mathbf{x}}\,.
+\]
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figs/demons_velocity.png
+	lyxscale 20
+	width 100col%
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Illustration of Demons velocity computation 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "thirion96"
+literal "false"
+
+\end_inset
+
+, contrasted with Horn an Schunck 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "horn81"
+literal "false"
+
+\end_inset
+
+ optical flow.
+ The velocity field is computed between cine MRI frames from Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:vnr-oflow-result"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+ The Demons velocity field is shown before and after smoothing in (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:demons"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:vnr-demons-velocity"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+However, the expression on the right is asymptotic at locations with near
+ constant intensity, where 
+\begin_inset Formula $|I_{\mathbf{x}}|\simeq0$
+\end_inset
+
+.
+ It also results in very noisy velocity fields.
+ To overcome this, Thirion proposed modifying the expression for 
+\begin_inset Formula $\vec{v}$
+\end_inset
+
+ as follows:
+\begin_inset Formula 
+\begin{equation}
+\vec{v}=G_{\sigma}*\begin{cases}
+\frac{-I_{t}}{|I_{\mathbf{x}}|^{2}+|I_{t}|^{2}}I_{\mathbf{x}} & {\textstyle \mathrm{if}\,\,|I_{\mathbf{x}}|^{2}+|I_{t}|^{2}>\epsilon}\\
+\mathbf{0} & \mathrm{otherwise}
+\end{cases}\,.\label{eq:demons}
+\end{equation}
+
+\end_inset
+
+This formulation reduces the number of points where 
+\begin_inset Formula $\vec{v}$
+\end_inset
+
+ is unstable, and results in zero velocity over regions of constant intensity.
+ The convolution with the Gaussian kernel 
+\begin_inset Formula $G_{\sigma}$
+\end_inset
+
+ regularizes the velocity field, somewhat similar to the Horn and Schunk
+ approach, but without optimization (Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:vnr-demons-velocity"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
+ This results in a very fast computation of optical flow.
+ The following algorithm is approximately equivalent to the original Demons
+ formulation:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float algorithm
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $I$
+\end_inset
+
+ be the fixed image and 
+\begin_inset Formula $J$
+\end_inset
+
+ the moving image.
+ Let 
+\begin_inset Formula $\phi^{0}=\mathrm{Id}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Enumerate
+Iterate for 
+\begin_inset Formula $i=0,\ldots,M$
+\end_inset
+
+:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $J^{i}=J\circ\phi^{i}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+Compute optical flow 
+\begin_inset Formula $\vec{v}^{i}$
+\end_inset
+
+ between images 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+ as
+\begin_inset Formula 
+\[
+\vec{v}^{i}=G_{\sigma}*\begin{cases}
+-\frac{J^{i}-I}{|\nabla J^{i}|^{2}+|J^{i}-I|^{2}}\nabla J^{i} & {\textstyle \mathrm{if}\,|\nabla J^{i}|^{2}+|J^{i}-I|^{2}>\epsilon}\\
+\mathbf{0} & \mathrm{otherwise}
+\end{cases}\,.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $\psi^{i}=\mathrm{Id}+\epsilon\vec{v}^{i}$
+\end_inset
+
+, i.e., 
+\begin_inset Formula $\psi^{i}(\mathbf{x})=\mathbf{x+\epsilon}\vec{v}^{i}(\mathbf{x})$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $\phi^{i+1}=$
+\end_inset
+
+
+\begin_inset Formula $G_{\tau}*(\phi^{i}\circ\psi^{i})$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+Terminate if 
+\begin_inset Formula $|J\circ\phi^{i+1}-J^{i}|$
+\end_inset
+
+ is below threshold
+\end_layout
+
+\end_deeper
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+The Compositional Demons Algorithm 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "thirion96"
+literal "false"
+
+\end_inset
+
+.
+\begin_inset CommandInset label
+LatexCommand label
+name "alg:vnr-demons"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+There are a several observations to be made about the algorithm:
+\end_layout
+
+\begin_layout Itemize
+The expression in 2(b) is derived from (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:demons"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) by approximating 
+\begin_inset Formula $I_{t}$
+\end_inset
+
+ with 
+\begin_inset Formula $J^{i}-I$
+\end_inset
+
+ and approximating 
+\begin_inset Formula $I_{\mathbf{x}}$
+\end_inset
+
+ with 
+\begin_inset Formula $\nabla J^{i}$
+\end_inset
+
+.
+ It is also possible to approximate 
+\begin_inset Formula $I_{\mathbf{x}}$
+\end_inset
+
+ with 
+\begin_inset Formula $\nabla I$
+\end_inset
+
+ or with 
+\begin_inset Formula $\frac{1}{2}(\nabla J^{i}+\nabla I)$
+\end_inset
+
+.
+ How these different approximations affect the behavior of Demons is explored
+ in 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "vercauteren09"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+In practice, the scaling factor 
+\begin_inset Formula $\epsilon$
+\end_inset
+
+ in step 2(c) can be chosen in different ways.
+ For example, it can be adapted at each iteration so that 
+\begin_inset Formula $\sup_{\mathbf{x}\in\Omega}|\vec{v}^{i}|\le\epsilon'$
+\end_inset
+
+, where 
+\begin_inset Formula $\epsilon'$
+\end_inset
+
+ is fixed across iterations (typically on the order of 
+\begin_inset Formula $1/4$
+\end_inset
+
+ to 
+\begin_inset Formula $1/2$
+\end_inset
+
+ of the voxel dimension).
+\end_layout
+
+\begin_layout Itemize
+Observe that convolution with a Gaussian filter is performed in two places:
+ in step 2(b), when regularizing the optical flow, and in step 2(d), when
+ combining the accumulated transformation 
+\begin_inset Formula $\phi^{i}$
+\end_inset
+
+ with the small transformation 
+\begin_inset Formula $\psi^{i}$
+\end_inset
+
+.
+ Vercauteren et al., 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "vercauteren09"
+literal "false"
+
+\end_inset
+
+ describe these as 
+\begin_inset Quotes eld
+\end_inset
+
+fluid-like
+\begin_inset Quotes erd
+\end_inset
+
+ and 
+\begin_inset Quotes eld
+\end_inset
+
+diffusion-like
+\begin_inset Quotes erd
+\end_inset
+
+ regularization.
+ In practice, both kinds of regularization are needed to obtain a good quality
+ registration.
+ 
+\end_layout
+
+\begin_layout Itemize
+Unlike many algorithms in computer vision and medical image analysis, the
+ Demons algorithm is not formulated in a variational fashion, i.e., in terms
+ of some energy functional 
+\begin_inset Formula $E[\phi]$
+\end_inset
+
+ that is minimized.
+ However, Vercauteren et al., 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "vercauteren09"
+literal "false"
+
+\end_inset
+
+ show that it is possible to interpret Demons as energy minimization by
+ introducing an additional concept of a correspondence map.
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+The correspondence map 
+\begin_inset Formula $c:\Omega\rightarrow\Omega$
+\end_inset
+
+ can be interpreted as a more 
+\begin_inset Quotes eld
+\end_inset
+
+raw
+\begin_inset Quotes erd
+\end_inset
+
+, unregularized mapping of pixels in the fixed image 
+\begin_inset Formula $I$
+\end_inset
+
+ to the pixels in the moving image 
+\begin_inset Formula $J$
+\end_inset
+
+.
+ Vercauteren et al.
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "vercauteren09"
+literal "false"
+
+\end_inset
+
+ define an energy functional that involves both the unknown transformation
+ and the unknown correspondence map:
+\begin_inset Formula 
+\[
+E[c,\phi]=\lambda_{1}\|I-J\circ c\|^{2}+\lambda_{2}\|\phi-c\|+\lambda_{3}\|\nabla\phi\|^{2}\,,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\lambda_{1},\lambda_{2},\lambda_{3}$
+\end_inset
+
+ are coefficients corresponding to the three terms in the energy: the intensity
+ similarity (how well the correspondence map matches pixels in the two images);
+ the fidelity of the transformation (how well the transformation 
+\begin_inset Formula $\phi$
+\end_inset
+
+ agrees with the correspondence map 
+\begin_inset Formula $c$
+\end_inset
+
+); and the regularization term (how noisy is the transformation 
+\begin_inset Formula $\phi$
+\end_inset
+
+).
+ The authors then show that the Demons iterative algorithm correponds to
+ alternatively minimizing 
+\begin_inset Formula $E[c,\phi]$
+\end_inset
+
+ with respect to 
+\begin_inset Formula $c$
+\end_inset
+
+ and 
+\begin_inset Formula $\phi$
+\end_inset
+
+.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The Demons algorithm is a very fast non-parametric registration algorithm.
+ It only involves very basic image processing operations such as composition
+ of transformation fields (interpolation), computation of image gradients,
+ and convolution with a Gaussian kernel.
+ It is also highly parallelizable.
+ A MATLAB implementation of the Demons algorithm is provided in Listing
+ XXX.
+\end_layout
+
+\begin_layout Description
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Description
+parametric/non-parametric Parametric techniques describe the transformation
+ 
+\begin_inset Formula $\phi$
+\end_inset
+
+ using a number of parameters (hundreds, thousands) that is large but smaller
+ than the number of voxels in the image.
+ These techniques are implemented as optimization problems over the set
+ of unknown parameters, typically using gradient-based optimization methods.
+ Parametric methods use basis functions, such as 
+\emph on
+b-splines
+\emph default
+, to ensure that the transformation 
+\begin_inset Formula $\phi$
+\end_inset
+
+ is a smooth function.
+ By contrast, non-parametric techniques model 
+\begin_inset Formula $\phi$
+\end_inset
+
+ as an unknown continuous function, and they require the tools of variational
+ calculus to solve.
+ Non-parametric techniques are mathematically more complex, but they can
+ actually be more efficient and may require less code to implement.
+\end_layout
+
+\begin_layout Description
+diffeomorphic/non-diffeomorphic An important class of DIR techniques are
+ techniques that guarantee that the transformation 
+\begin_inset Formula $\phi$
+\end_inset
+
+ is smooth and does not cause tearing or folding of the domain 
+\begin_inset Formula $\Omega.$
+\end_inset
+
+ Mathematically, this means that 
+\begin_inset Formula $\phi$
+\end_inset
+
+ is smooth and has a smooth inverse 
+\begin_inset Formula $\phi^{-1}$
+\end_inset
+
+, such that 
+\begin_inset Formula $\phi^{-1}(\phi(\mathbf{x}))=\mathbf{x}$
+\end_inset
+
+.
+ Diffeomorphic DIR is desired in applications where we can assume one-to-one
+ correspondence between anatomies, for example registration between brains
+ of healthy individuals.
+ The existence of the inverse transformation makes DIR bidirectional: given
+ registration between image 
+\begin_inset Formula $I$
+\end_inset
+
+ and image 
+\begin_inset Formula $J$
+\end_inset
+
+, the registration between 
+\begin_inset Formula $J$
+\end_inset
+
+ and 
+\begin_inset Formula $I$
+\end_inset
+
+is also known.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Log-Domain Diffeomorphic Demons Algorithm
+\end_layout
+
+\begin_layout Standard
+The transformations produced by the compositional Demons algorithm are not
+ guaranteed to be diffeomorphic.
+ In practice, they often are because at each iteration the current transformatio
+n 
+\begin_inset Formula $\phi^{i}$
+\end_inset
+
+ is composed with a small transformation 
+\begin_inset Formula $\psi^{i}$
+\end_inset
+
+.
+ However, the convolution with the Gaussian kernel 
+\begin_inset Formula $G_{\tau}$
+\end_inset
+
+ in step 2(d) may break the diffeomorphic property, and also the numerical
+ implementation may eventually lead to solutions that are in fact not diffeomorp
+hic.
+ Another limitation of compositional Demons is that it only provides the
+ forward transformation 
+\begin_inset Formula $\phi^{i}$
+\end_inset
+
+ that maps points in the fixed image to corresponding points in the moving
+ image, but the inverse transformation is not generated.
+ Although it is possible to estimate the inverse of a diffeomorphic transformati
+on 
+\emph on
+post hoc
+\emph default
+ doing so without significant numerical error is nontrivial and computationally
+ expensive [XXX].
+ 
+\end_layout
+
+\begin_layout Standard
+Vercauteren et al.
+ (2008) 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "vercauteren08"
+literal "false"
+
+\end_inset
+
+ proposed a modification to the compositional Demons algorithm that guarantees
+ diffeomorphic solutions and outputs both forward and inverse transformations.
+ This approach is called 
+\emph on
+log-domain Demons.
+
+\emph default
+ It takes advantage of the fact that diffeomorphic transformations can be
+ generated from smooth and bounded vector-valued functions using the using
+ the exponential map (see Section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:vnr-sec-math-diff"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
+ The main modification from compositional Demons is that instead of directly
+ updating the spatial transformation 
+\begin_inset Formula $\phi^{i}$
+\end_inset
+
+ at each iteration of the algorithm, Vercauteren's method performs updates
+ in the 
+\begin_inset Quotes eld
+\end_inset
+
+logarithmic domain
+\begin_inset Quotes erd
+\end_inset
+
+, i.e., it updates the vector-valued function 
+\begin_inset Formula $\mathbf{u}^{i}$
+\end_inset
+
+, such that the desired spatial transformation is given by 
+\begin_inset Formula 
+\[
+\phi^{i}=\exp(\mathbf{u}^{i})\,,
+\]
+
+\end_inset
+
+which in turn is approximated using the scaling and squaring algorithm (see
+ Section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:vnr-sec-math-diff"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+The crux of the algorithm is to figure out how to perform the update 
+\begin_inset Formula $\mathbf{u}^{i}\rightarrow\mathbf{u}^{i+1}$
+\end_inset
+
+ in the logarithmic domain given the optical flow velocity field 
+\begin_inset Formula $\epsilon\vec{v}^{i}$
+\end_inset
+
+, such that 
+\begin_inset Formula $\exp(\mathbf{u}^{i+1})=\exp(\mathbf{u}^{i})\circ(\text{Id}+\epsilon\vec{v})$
+\end_inset
+
+.
+ In principle, doing so requires the inverse of the exponential map (i.e.,
+ the logarithm map), which is not well-defined for the infinite-dimensional
+ group of diffeomorphisms, and also very expensive to compute.
+ However, Vercauteren et al.
+ show that the following approximation, based on the Baker-Campbell-Hausdorff
+ formula from the theory of Lie groups 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "rossmann06"
+literal "false"
+
+\end_inset
+
+, is sufficiently accurate in practice:
+\begin_inset Formula 
+\[
+\mathbf{u}^{i+1}\simeq\mathbf{u}^{i}+\epsilon\,\vec{v}^{i}+\frac{\epsilon}{2}[\mathbf{u}^{i},\vec{v}^{i}]\,,
+\]
+
+\end_inset
+
+where the expression 
+\begin_inset Formula $[\mathbf{u},\mathbf{v}]$
+\end_inset
+
+ is called the 
+\emph on
+Lie bracket
+\emph default
+, and has the form:
+\begin_inset Formula 
+\[
+[\mathbf{u},\mathbf{v}]=(D\mathbf{u})\mathbf{v}-(D\mathbf{v})\mathbf{u}\,,
+\]
+
+\end_inset
+
+and 
+\begin_inset Formula $D\mathbf{u}$
+\end_inset
+
+ denotes the Jacobian matrix of 
+\begin_inset Formula $\mathbf{u}$
+\end_inset
+
+.
+ This update takes place directly in the logarithmic domain, and is relatively
+ inexpensive computationally, compared to the update in steps 2(c,d) in
+ the compositive Demons algorithm.
+ Another change in the Vercauteren's algorithm is that regularization with
+ the diffusion kernel 
+\begin_inset Formula $G_{\tau}$
+\end_inset
+
+ is performed directly in the logarithmic domain.
+ The final algorithm is as follows:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float algorithm
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $I$
+\end_inset
+
+ be the fixed image and 
+\begin_inset Formula $J$
+\end_inset
+
+ the moving image.
+ Let 
+\begin_inset Formula $\mathbf{u}^{0}(\mathbf{x})=\mathbf{0}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Enumerate
+Iterate for 
+\begin_inset Formula $i=0,\ldots,M$
+\end_inset
+
+:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $J^{i}=J\circ\phi^{i}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+Compute optical flow 
+\begin_inset Formula $\vec{v}^{i}$
+\end_inset
+
+ between images 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J^{i}$
+\end_inset
+
+ as in Alg.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "alg:vnr-demons"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, Step 2(b).
+\end_layout
+
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $\mathbf{u}^{i+1}=G_{\tau}*\left(\mathbf{u}^{i}+\epsilon\,\vec{v}^{i}+\frac{\epsilon}{2}[\mathbf{u}^{i},\vec{v}^{i}]\right)$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $\phi^{i+1}=$
+\end_inset
+
+ 
+\begin_inset Formula $\exp(\mathbf{u}^{i+1})$
+\end_inset
+
+ and
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+ 
+\begin_inset Formula $(\phi^{i+1})^{-1}=\exp(-\mathbf{u}^{i+1})$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Enumerate
+Terminate if 
+\begin_inset Formula $|J\circ\phi^{i+1}-J^{i}|$
+\end_inset
+
+ is below threshold.
+\end_layout
+
+\end_deeper
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+The Log-domain Demons Algorithm 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "vercauteren08,vercauteren09"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The log-domain Demons algorithm is computationally efficient.
+ The added computational cost compared to compositional Demons is the computatio
+n of the Lie bracket (requires computing first derivatives of 
+\begin_inset Formula $\mathbf{u}^{i}$
+\end_inset
+
+ and 
+\begin_inset Formula $\vec{v}^{i}$
+\end_inset
+
+) and the handful of additional compositions involved in the scaling and
+ squaring algorithm.
+ Because it is fast, easy to implement, guarantees diffeomorphic transformations
+, and is very effective in practice, the log-domain Demons algorithm has
+ become one of the most widely used non-parametric registration approaches,
+ and variations of this method are implemented in various registration software
+ packages [xxx].
+ A number of extensions and improvements to the baseline log-Demons algorithm
+ have been made, including:
+\end_layout
+
+\begin_layout Itemize
+The algorithm can be extended to work with other intensity similarity metrics,
+ such as patch cross-correlation (Sec.
+ XXX) and mutual information (Sec.
+ XXX).
+ For an arbitrary intensity similarity metric 
+\begin_inset Formula $\mu[I,J]$
+\end_inset
+
+, the optical flow computation in Step 2(b) is replaced with the vector
+ field
+\begin_inset Formula 
+\[
+\vec{v}^{i}=-G_{\sigma}*\nabla_{J}\mu(I,J_{i})\,,
+\]
+
+\end_inset
+
+which like the optical flow field corresponds to a small transformation
+ that would pull 
+\begin_inset Formula $J_{i}$
+\end_inset
+
+ in the direction that lowers the metric value.
+ In practice, Demons-like registration using the cross-correlation metric
+ is particularly effective for many types of medical images.
+\end_layout
+
+\begin_layout Itemize
+The algorithm can be made symmetric, such that the result of the registration
+ with 
+\begin_inset Formula $I$
+\end_inset
+
+ as the fixed image and 
+\begin_inset Formula $J$
+\end_inset
+
+ is the moving image is the inverse of the result of the registration with
+ 
+\begin_inset Formula $J$
+\end_inset
+
+ as the fixed image and 
+\begin_inset Formula $I$
+\end_inset
+
+ as the moving image.
+ A symmetric extension of log Demons is described in the original paper
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "vercauteren08"
+literal "false"
+
+\end_inset
+
+ and requires only a minor modification to the algorithm, based on computing
+ the optical flow in both directions (fixed to moving and moving to fixed),
+ and a minor increase in computational cost.
+\end_layout
+
+\begin_layout Itemize
+Mansi et al.
+ (2011) 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "mansi11"
+literal "false"
+
+\end_inset
+
+ proposed a modification of log-domain Demons that constrains transformations
+ to be incompressible (
+\begin_inset Formula $|D\phi^{i}|=1)$
+\end_inset
+
+ over regions of the fixed image.
+ This constraint is useful when performing registration in anatomical structures
+ with known biomechanical properties, such as deforming cardiac tissue.
+ 
+\end_layout
+
+\begin_layout Section
+Large Deformation Diffeomorphic Metric Mapping (LDDMM)
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:vnr-lddmm"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+LDDMM Formulation
+\end_layout
+
+\begin_layout Standard
+We now turn our attention to another highly influential approach to non-parametr
+ic registration with diffeomorphic constraints, called 
+\emph on
+Large Deformation Diffeomorphic Metric Mapping (LDDMM)
+\emph default
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "beg05,miller06"
+literal "false"
+
+\end_inset
+
+.
+ Unlike Demons and related registration techniques, LDDMM is formulated
+ explicitly as a problem of minimizing an energy functional over the space
+ of diffeomorphic transformations, 
+\begin_inset Formula $\text{Diff}$
+\end_inset
+
+.
+ The energy functional is a weighted sum of the similarity metric between
+ the fixed and moving images (with weight 
+\begin_inset Formula $\frac{1}{\sigma^{2}}$
+\end_inset
+
+, following the notation in 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "beg05"
+literal "false"
+
+\end_inset
+
+) and a regularization term on the spatial transformation:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+\phi^{*}=\argmin\limits _{\phi\in\text{Diff}}E[\phi]\,,\quad\text{where\ensuremath{\quad}\,E[\ensuremath{\phi]}}=\frac{1}{\sigma^{2}}\,\mu(\phi;I,J)+\text{Reg}(\phi)\,.\label{eq:vnr-lddmm-bare}
+\end{equation}
+
+\end_inset
+
+This kind of 
+\emph on
+variational
+\emph default
+ formulation of the registration problem has advantages over the 
+\emph on
+
+\begin_inset Quotes eld
+\end_inset
+
+greedy
+\begin_inset Quotes erd
+\end_inset
+
+
+\emph default
+ formulation in Demons, which does not directly associate solutions with
+ an energy value.
+ For example, it provides a principled way to compare the fidelity of different
+ solutions 
+\begin_inset Formula $\phi_{1},\phi_{2},\ldots$
+\end_inset
+
+, and as we will see below, it actually provides a sensible way to extend
+ the familiar concepts of 
+\begin_inset Quotes eld
+\end_inset
+
+distance
+\begin_inset Quotes erd
+\end_inset
+
+ and 
+\begin_inset Quotes eld
+\end_inset
+
+average
+\begin_inset Quotes erd
+\end_inset
+
+ to the highly non-linear space of medical images.
+\end_layout
+
+\begin_layout Standard
+The problem formulated in (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-lddmm-bare"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) requires us to search for solutions in the space 
+\begin_inset Formula $\text{Diff}$
+\end_inset
+
+.
+ Because of the non-linear nature of 
+\begin_inset Formula $\text{Diff}$
+\end_inset
+
+, doing so is very difficult when representing the transformations 
+\begin_inset Formula $\phi$
+\end_inset
+
+ directly, i.e., as vector fields.
+ For example, if 
+\begin_inset Formula $\phi_{1}$
+\end_inset
+
+ and 
+\begin_inset Formula $\phi_{2}$
+\end_inset
+
+ are in 
+\begin_inset Formula $\text{Diff}$
+\end_inset
+
+, there is no guarantee that transformations in the form 
+\begin_inset Formula $w_{1}\phi_{1}+w_{2}\phi_{2}$
+\end_inset
+
+ (where 
+\begin_inset Formula $w_{1}$
+\end_inset
+
+ and 
+\begin_inset Formula $w_{2}$
+\end_inset
+
+ are scalars) will be in 
+\begin_inset Formula $\text{Diff}$
+\end_inset
+
+.
+ Constraining solutions 
+\begin_inset Formula $\phi$
+\end_inset
+
+ to stay in 
+\begin_inset Formula $\text{Diff}$
+\end_inset
+
+ during the minimization of 
+\begin_inset Formula $E[\phi]$
+\end_inset
+
+ in (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-lddmm-bare"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) would be difficult and computationally expensive.
+\end_layout
+
+\begin_layout Standard
+However, as we have seen in Section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:vnr-diff-flowode"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, diffeomorphic transformations can be generated from less constrained represent
+ations (i.e., differentiable and bounded vector fields) in various ways.
+ LDDMM leverages the fact that a family of diffeomorphic transformations
+ 
+\begin_inset Formula $\phi(\mathbf{x},t)$
+\end_inset
+
+ parameterized by time 
+\begin_inset Formula $t\in[0,1]$
+\end_inset
+
+ can be generated from a time-varying differentiable and bounded 
+\emph on
+velocity field 
+\emph default
+
+\begin_inset Formula $\mathbf{v}(\mathbf{x},t):\Omega\times[0,1]\rightarrow\mathbb{R}^{n}$
+\end_inset
+
+ using the flow ODE (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-diff-flowode"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
+ For a given point 
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+ in the space of the fixed image 
+\begin_inset Formula $I$
+\end_inset
+
+, the function 
+\begin_inset Formula $\phi(\mathbf{x},t)$
+\end_inset
+
+ describes a non-linear trajectory of that point as it moves tangentially
+ to 
+\begin_inset Formula $\mathbf{v}(\mathbf{x},t)$
+\end_inset
+
+, like a dust particle in the wind.
+ Let the diffeomorphic transformation 
+\begin_inset Formula $\phi_{1}(\mathbf{x})=\phi(\mathbf{x},1)$
+\end_inset
+
+ denote the final position of 
+\series bold
+
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+
+\series default
+.
+ LDDMM reformulates the registration problem (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-lddmm-bare"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) as the problem of finding a velocity field 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ for which the final transformation 
+\begin_inset Formula $\phi_{1}(\mathbf{x})$
+\end_inset
+
+ best matches corresponding points between fixed and moving images, while
+ also subject to a regularization term:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{multline}
+\mathbf{v}^{*}=\argmin\limits _{\mathbf{v}\in{\cal V}}E[\mathbf{v}]\,,\quad\text{where\ensuremath{\quad}\,E[\ensuremath{\mathbf{v}]}}=\frac{1}{\sigma^{2}}\,\mu(\phi_{1};I,J)+\text{Reg}(\mathbf{v})\,,\\
+\text{and \frac{\text{d}\phi}{\text{d}t}(\mathbf{x},t)=\mathbf{v}(\phi(\mathbf{x},t),t)\,,\quad\text{subj. to}\,\,\phi(\mathbf{x},0)=\mathbf{x}\,}\label{eq:vnr-lddmm-velocity}
+\end{multline}
+
+\end_inset
+
+Unlike (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-lddmm-bare"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+), the search space 
+\begin_inset Formula ${\cal V}$
+\end_inset
+
+ for this energy minimization problem consists of smooth and bounded vector-valu
+ed velocity fields, and is much simpler in structure than 
+\begin_inset Formula $\text{Diff}$
+\end_inset
+
+.
+ For example, given two candidate solutions 
+\begin_inset Formula $\mathbf{v}_{1},\mathbf{v}_{2}\in{\cal V}$
+\end_inset
+
+, their weighted sums 
+\begin_inset Formula $w_{1}\mathbf{v}_{1}+w_{2}\mathbf{v}_{2}$
+\end_inset
+
+ are also members of the search space 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula ${\cal V}$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Paragraph
+Regularization Term 
+\end_layout
+
+\begin_layout Standard
+Let us now consider the regularization term in (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-lddmm-velocity"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
+ We can learn a lot about the properties of the final transformation 
+\begin_inset Formula $\phi_{1}(\mathbf{x})$
+\end_inset
+
+ by examining the properties of 
+\begin_inset Formula $\mathbf{v}(\mathbf{x},t)$
+\end_inset
+
+.
+ Following our wind/dust analogy, the faster the wind is, the farther the
+ particles are likely to travel; and the smoother the field wind is, the
+ more simple the trajectories of the particles are likely to be.
+ This suggests that it should be possible to measure the regularity of the
+ trajectories 
+\begin_inset Formula $\phi(\mathbf{x},t)$
+\end_inset
+
+ and of the final transformation 
+\begin_inset Formula $\phi_{1}(\mathbf{x})$
+\end_inset
+
+ using quantities derived directly from the velocity field 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Let us consider for a moment the squared Euclidean or 
+\begin_inset Formula $L^{2}$
+\end_inset
+
+ norm of 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ as a potential regularization term.
+ It is defined as follows:
+\begin_inset Formula 
+\[
+\|\mathbf{v}\|_{L^{2}}^{2}=\intop_{0}^{1}\intop_{\Omega}\left|\mathbf{v}(\mathbf{x},t)\right|^{2}\,\text{d}\mathbf{x}\,\text{d}t\,=\intop_{0}^{1}\intop_{\Omega}<\mathbf{v}(\mathbf{x},t),\mathbf{v}(\mathbf{x},t)>\,\text{d}\mathbf{x}\,\text{d}t\,.
+\]
+
+\end_inset
+
+This norm integrates the magnitude of the velocity across space and time
+ dimensions.
+ The faster the 
+\begin_inset Quotes eld
+\end_inset
+
+wind
+\begin_inset Quotes erd
+\end_inset
+
+ in our analogy, the greater 
+\begin_inset Formula $\|\mathbf{v}\|_{L^{2}}^{2}$
+\end_inset
+
+ will be.
+ Consequently, the particles described by 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+
+\begin_inset Formula $\phi(\mathbf{x},t)$
+\end_inset
+
+ will travel farther.
+ If we use 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\text{Reg}(\mathbf{v})=\|\mathbf{v}\|_{L^{2}}^{2}$
+\end_inset
+
+ as the regularization term in (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-lddmm-velocity"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+), then we would favor solutions that have shorter trajectories, which is
+ reasonable.
+ However, 
+\begin_inset Formula $\|\mathbf{v}\|_{L^{2}}^{2}$
+\end_inset
+
+ does nothing to penalize the noisiness of the velocity field, so we are
+ likely to get noisy solutions.
+ 
+\end_layout
+
+\begin_layout Standard
+In LDDMM 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "beg05"
+literal "false"
+
+\end_inset
+
+, the authors associate the space of time-varying velocity fields 
+\begin_inset Formula ${\cal V}$
+\end_inset
+
+ with a different non-Euclidean norm called the 
+\emph on
+Sobolev norm
+\emph default
+.
+ The Sobolev norm of a vector field measures both its magnitude and its
+ regularity, and is defined as 
+\begin_inset Formula 
+\[
+\|\mathbf{v}\|_{{\cal V}}^{2}=\|\mathbf{{\cal L}v}\|_{L^{2}}^{2}=\intop_{0}^{1}\intop_{\Omega}\left|{\cal L}\mathbf{v}(\mathbf{x},t)\right|^{2}\,\text{d}\mathbf{x}\,\text{d}t\,,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula ${\cal L}$
+\end_inset
+
+ is a differential operator.
+ In LDDMM, this operator is given the following form: 
+\begin_inset Formula 
+\[
+{\cal L}\mathbf{v}=\gamma\mathbf{v}-\alpha\Delta\mathbf{v}\,,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\Delta$
+\end_inset
+
+ is the Laplacian operator, applied separately to each component of 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+.
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+Specifically, 
+\begin_inset Formula $\Delta\mathbf{v}=\left[\begin{array}{c}
+\frac{\partial^{2}v^{1}}{\partial x_{1}^{2}}+\ldots+\frac{\partial^{2}v^{1}}{\partial x_{n}^{2}}\\
+\vdots\\
+\frac{\partial^{2}v^{n}}{\partial x_{1}^{2}}+\ldots+\frac{\partial^{2}v^{n}}{\partial x_{n}^{2}}
+\end{array}\right]\,.$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+; 
+\begin_inset Formula $\gamma>0$
+\end_inset
+
+ and 
+\begin_inset Formula $\alpha>0$
+\end_inset
+
+ are scalar weights that control the extent to which the magnitude and regularit
+y components contribute to 
+\begin_inset Formula $\|\mathbf{v}\|_{{\cal V}}^{2}$
+\end_inset
+
+ .
+ As is common in the LDDMM literature, we will use the term 
+\emph on
+kinetic energy
+\emph default
+ to describe the combined magnitude and regularity of the time-varying velocity
+ field 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ captured by the Sobolev norm 
+\begin_inset Formula $\|\mathbf{v}\|_{{\cal V}}^{2}$
+\end_inset
+
+.
+ In particular, the term 
+\begin_inset Quotes eld
+\end_inset
+
+kinetic energy of a diffeomorphic flow 
+\begin_inset Formula $\phi_{t}$
+\end_inset
+
+
+\begin_inset Quotes erd
+\end_inset
+
+ refers to the Sobolev norm of the velocity field 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ from which 
+\begin_inset Formula $\phi_{t}$
+\end_inset
+
+ is generated by the flow ODE.
+\end_layout
+
+\begin_layout Standard
+Figure XXX shows examples of diffeomorphic transformations obtained by solving
+ the flow ODE for different synthetically generated velocity fields 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+, with corresponding values of the kinetic energy.
+ The figure illustrates that the regularization 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\text{Reg}(\mathbf{v})=\|\mathbf{v}\|_{{\cal V}}^{2}$
+\end_inset
+
+ 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+favors transformations that are not too large and not too irregular.
+\end_layout
+
+\begin_layout Paragraph
+Similarity Metric.
+\end_layout
+
+\begin_layout Standard
+In the original formulation of LDDMM 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "beg05"
+literal "false"
+
+\end_inset
+
+, the authors used the sum of squared differences (SSD) similarity metric,
+ due to its mathematical simplicity.
+ Other metrics can also be used in conjunction with LDDMM, but SSD is best
+ suited for understanding the approach.
+ Elsewhere in this chapter, we computed the similarity metric in the space
+ of the fixed image 
+\begin_inset Formula $I$
+\end_inset
+
+, with the moving image 
+\begin_inset Formula $J$
+\end_inset
+
+ warped into the space of 
+\begin_inset Formula $I$
+\end_inset
+
+: 
+\begin_inset Formula 
+\[
+\mu(\phi;I,J)=\intop_{\Omega}\left|I-J\circ\phi\right|^{2}\,\text{d}\mathbf{x}\,.
+\]
+
+\end_inset
+
+In the original LDDMM paper 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "beg05"
+literal "false"
+
+\end_inset
+
+, the authors chose to compute the similarity metric in the space of the
+ moving image instead, with the fixed image warped back into the space of
+ the moving image using the inverse of the final transformation 
+\begin_inset Formula $\phi_{1}$
+\end_inset
+
+:
+\begin_inset Formula 
+\[
+\mu(\phi_{1};I,J)=\intop_{\Omega}\left|I\circ\phi_{1}^{-1}-J\right|^{2}\,\text{d}\mathbf{x}\,.
+\]
+
+\end_inset
+
+Since it does not really matter whether the similarity is computed in the
+ space of the fixed or moving image, we will follow the convention of the
+ original LDDMM paper here.
+ The complete formulation of the LDDMM registration algorithm is the following
+ energy minimization problem:
+\begin_inset Formula 
+\begin{multline}
+\mathbf{v}^{*}=\argmin\limits _{\mathbf{v}\in{\cal V}}E[\mathbf{v};I,J]\,,\quad\text{where}\\
+\text{\ensuremath{E[\mathbf{v};I,J]}}=\|\mathbf{v}\|_{{\cal V}}^{2}+\frac{1}{\sigma^{2}}\intop_{\Omega}\left|I\circ\phi_{1}^{-1}-J\right|^{2}\,\text{d}\mathbf{x}\,,\\
+\text{and \ensuremath{\frac{\text{d}\phi}{\text{d}t}}(\ensuremath{\mathbf{x}},t)=\ensuremath{\mathbf{v}}(\ensuremath{\phi}(\ensuremath{\mathbf{x}},t),t)\,,\quad\text{subj. to}\,\,\ensuremath{\phi}(\ensuremath{\mathbf{x}},0)=\ensuremath{\mathbf{x}\,}.}\label{eq:vnr-lddmm-complete}
+\end{multline}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Approaches to Solving the LDDMM Problem
+\end_layout
+
+\begin_layout Subsubsection
+Variational Approach 
+\end_layout
+
+\begin_layout Standard
+The minimization of the energy functional 
+\begin_inset Formula $\text{\ensuremath{E[\mathbf{v};I,J]}}$
+\end_inset
+
+ in (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-lddmm-complete"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) can be solved using standard variational techniques, i.e., by writing down
+ the the Euler-Lagrange equation for 
+\begin_inset Formula $E$
+\end_inset
+
+.
+ The derivation is quite involved (largely due to the presence of the ODE
+ in the formulation) and we direct interested readers to the original paper
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "beg05"
+literal "false"
+
+\end_inset
+
+.
+ For a given value of 
+\begin_inset Formula $t\in[0,1]$
+\end_inset
+
+, the Euler-Lagrange equation is:
+\begin_inset Formula 
+\begin{equation}
+2\mathbf{v}_{t}-{\cal K}\left(\frac{2}{\sigma^{2}}\left|D\phi_{t,1}\right|\,\nabla I_{t}(I_{t}-J_{t})\right)=0\,,\label{eq:vnr-lddmm-el}
+\end{equation}
+
+\end_inset
+
+where
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="8" columns="2">
+<features tabularvalignment="middle">
+<column alignment="right" valignment="middle" width="25col%">
+<column alignment="left" valignment="top" width="65text%">
+<row>
+<cell alignment="right" valignment="middle" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\mathbf{v}_{t}(\mathbf{x})=\mathbf{v}(\mathbf{x},t)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+is the velocity field at a fixed time 
+\begin_inset Formula $t$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="right" valignment="middle" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\phi_{t}(\mathbf{x})=\phi(\mathbf{x},t)$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+is the spatial transformation at a fixed time 
+\begin_inset Formula $t$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="right" valignment="middle" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\phi_{t,1}=\phi_{1}\circ\phi_{t}^{-1}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+is the transformation between points at timepoint 
+\begin_inset Formula $t$
+\end_inset
+
+ and the corresponding points at timepoint 
+\begin_inset Formula $1$
+\end_inset
+
+ 
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="right" valignment="middle" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\phi_{t,0}=\phi_{0}\circ\phi_{t}^{-1}=\phi_{t}^{-1}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+is the transformation between points at timepoint 
+\begin_inset Formula $t$
+\end_inset
+
+ and the corresponding points at timepoint 
+\begin_inset Formula $0$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="right" valignment="middle" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $I_{t}=I\circ\phi_{t,0}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+is the fixed image warped into the timepoint 
+\begin_inset Formula $t$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="right" valignment="middle" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $J_{t}=J\circ\phi_{t,1}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+is the moving image warped into the timepoint 
+\begin_inset Formula $t$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula $\left|D\phi_{t,1}\right|$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+is the determinant of the Jacobian of 
+\begin_inset Formula $\phi_{t,1}$
+\end_inset
+
+ 
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="right" valignment="middle" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula ${\cal K}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+is the operator satisfying the relation 
+\begin_inset Formula ${\cal K}({\cal L}^{\dagger}{\cal L})\mathbf{u}=\mathbf{u}$
+\end_inset
+
+ for all vector fields 
+\begin_inset Formula $\mathbf{u}\in{\cal U}$
+\end_inset
+
+, where 
+\begin_inset Formula $\dagger$
+\end_inset
+
+ denotes the adjoint.
+ 
+\begin_inset Formula ${\cal K}$
+\end_inset
+
+ is the inverse of the operator 
+\begin_inset Formula ${\cal L}^{\dagger}{\cal L}$
+\end_inset
+
+, and does not have a closed form.
+ In practice it is computed by solving the partial differential equation
+ 
+\begin_inset Formula ${\cal L}^{\dagger}{\cal L}\mathbf{w}=\mathbf{u}$
+\end_inset
+
+ for 
+\begin_inset Formula $\mathbf{w}\in{\cal U}$
+\end_inset
+
+.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Given the Euler-Lagrange equation, the optimization problem is discretized
+ and solved sequentially as most other variational optimization problems
+ in this book, i.e., by making small updates in the opposite direction of
+ the left hand side of (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-lddmm-el"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
+ The following additional considerations are involved in implementing the
+ LDDMM approach computationally:
+\end_layout
+
+\begin_layout Itemize
+The time dimension is discretized into a fixed number of steps (e.g., 
+\begin_inset Formula $40$
+\end_inset
+
+ or 
+\begin_inset Formula $100$
+\end_inset
+
+).
+ 
+\end_layout
+
+\begin_layout Itemize
+During optimization, it is necessary to compute and maintain in memory the
+ transformations 
+\begin_inset Formula $\phi_{t}(\mathbf{x})$
+\end_inset
+
+ and 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\phi_{t}(\mathbf{x})^{-1}$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ for each discrete time step 
+\begin_inset Formula $t$
+\end_inset
+
+.
+ These transformations are computed using numerical schemes for approximating
+ the flow ODE (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-diff-flowode"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
+ While Euler's method can be used for this, Beg et al.
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "beg05"
+literal "false"
+
+\end_inset
+
+ use a more accurate two-step semi-Lagrangian scheme 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "staniforth91"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+The partial differential equation corresponding to the application of the
+ operator 
+\begin_inset Formula ${\cal K}$
+\end_inset
+
+ in (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-lddmm-el"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) is solved numerically using Fourier transform.
+ It is also possible to change the definition of 
+\begin_inset Formula ${\cal L}$
+\end_inset
+
+ so that 
+\begin_inset Formula ${\cal K}$
+\end_inset
+
+ corresponds to smoothing with a Gaussian kernel.
+ This does not appear to substantially change the solutions in practice.
+ 
+\end_layout
+
+\begin_layout Itemize
+Beg et al.
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "beg05"
+literal "false"
+
+\end_inset
+
+ show that, theoretically, the minimizer of (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-lddmm-complete"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) has 
+\begin_inset Quotes eld
+\end_inset
+
+constant speed
+\begin_inset Quotes erd
+\end_inset
+
+ (i.e., 
+\begin_inset Formula $\intop_{\Omega}\left|{\cal L}\mathbf{v}_{t}\right|^{2}\,\text{d}\mathbf{x}=\text{const }$
+\end_inset
+
+ as a function of time).
+ In practice, the sequential scheme for minimizing (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-lddmm-complete"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) does not yield solutions with constant speed, and Beg et al.
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "beg05"
+literal "false"
+
+\end_inset
+
+ recommend reparameterizing the solution 
+\begin_inset Formula $\mathbf{v}(\mathbf{x},t)$
+\end_inset
+
+ with respect to 
+\begin_inset Formula $t$
+\end_inset
+
+ to maintain constant speed after every few update iterations.
+\end_layout
+
+\begin_layout Standard
+Overall, the LDDMM approach yields itself well to computational implementation
+ and is highly parallelizable.
+ Several efficient GPU-based implementations have been developed [XXX].
+ However, it is quite memory intensive because of the need to maintain several
+ data arrays of the size 
+\begin_inset Formula ${\cal O}(NT)$
+\end_inset
+
+ where 
+\begin_inset Formula $N$
+\end_inset
+
+ is the size of 
+\begin_inset Formula $I$
+\end_inset
+
+ in voxels and 
+\begin_inset Formula $T$
+\end_inset
+
+ is the number of time steps.
+ 
+\end_layout
+
+\begin_layout Subsubsection
+Geodesic Shooting
+\end_layout
+
+\begin_layout Standard
+It turns out that we can minimize the LDDMM energy 
+\begin_inset Formula $E[\mathbf{v};I,J]$
+\end_inset
+
+ without having to optimize in the high-dimensional (space+time) space 
+\begin_inset Formula ${\cal V}$
+\end_inset
+
+.
+ It turns out that a velocity field 
+\begin_inset Formula $\mathbf{v}\in{\cal V}$
+\end_inset
+
+ that minimizes 
+\begin_inset Formula $E[\mathbf{v};I,J]$
+\end_inset
+
+ is entirely determined by the initial velocity 
+\begin_inset Formula $\mathbf{v}_{0}$
+\end_inset
+
+.
+ To understand this consider the following analogy:
+\end_layout
+
+\begin_layout Itemize
+Suppose you want to walk between two villages A and B located in a mountainous
+ terrain.
+ A path that you would follow can be described by its coordinates 
+\begin_inset Formula $\mathbf{x}(t)$
+\end_inset
+
+, with 
+\begin_inset Formula $\mathbf{x}(0)=A$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{x}(1)=B$
+\end_inset
+
+.
+ It can also be described by the your velocity vector at every time, 
+\begin_inset Formula $\mathbf{v}(t)$
+\end_inset
+
+, with the path itself given by the ODE 
+\begin_inset Formula 
+\[
+\mathbf{x}(0)=A\quad\text{and \ensuremath{\quad\dot{\mathbf{x}}(t)=\mathbf{v}(t)}}\,.
+\]
+
+\end_inset
+
+The length of this path is given simply by 
+\begin_inset Formula 
+\[
+L[\mathbf{v}]=\int_{0}^{1}|\mathbf{v}(t)|\,\text{d}t\,.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+Now suppose you wanted to walk from A to B covering the shortest possible
+ distance.
+ This shortest path is called the 
+\emph on
+minimizing geodesic.
+ 
+\emph default
+On a plane it is a straight line, but on a curved manifold, it is a curve
+ that locally 
+\begin_inset Quotes eld
+\end_inset
+
+looks like
+\begin_inset Quotes erd
+\end_inset
+
+ a straight line.
+ We can write the problem of finding the minimizing geodesic in terms of
+ 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ as follows:
+\begin_inset Formula 
+\[
+\mathbf{v}^{*}=\argmin\limits _{\mathbf{v}}L[v]\quad\text{subject to }\ \mathbf{x}(1)=B\,,
+\]
+
+\end_inset
+
+or equivalently,
+\begin_inset Formula 
+\begin{equation}
+\mathbf{v}^{*}=\argmin\limits_{\mathbf{v}}L[v]+\frac{1}{\sigma^{2}}|\mathbf{x}(1)-B|^{2}\,.\label{eq:vnr-geodesic-minimization}
+\end{equation}
+
+\end_inset
+
+This is analogous to the LDDMM energy minimization described above, and
+ similarly requires us to search for a time-parameterized velocity function
+ 
+\begin_inset Formula $\mathbf{v}(t)$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Itemize
+Let us now elaborate on the notion that a geodesic 
+\begin_inset Quotes eld
+\end_inset
+
+looks like
+\begin_inset Quotes erd
+\end_inset
+
+ a straight line locally.
+ Let 
+\begin_inset Formula $X$
+\end_inset
+
+ be some point that the curve
+\series bold
+ 
+\begin_inset Formula $\mathbf{x}(t)$
+\end_inset
+
+
+\series default
+ passes through, and let 
+\begin_inset Formula $T_{X}$
+\end_inset
+
+ be the tangent plane to the Earth's surface at 
+\begin_inset Formula $X$
+\end_inset
+
+.
+ The curvature of the projection of curve 
+\series bold
+
+\begin_inset Formula $\mathbf{x}(t)$
+\end_inset
+
+ 
+\series default
+onto 
+\begin_inset Formula $T_{X}$
+\end_inset
+
+ at 
+\begin_inset Formula $X$
+\end_inset
+
+ is called 
+\emph on
+geodesic curvature.
+ 
+\emph default
+A geodesic is a curve whose geodesic curvature is zero at every point.
+ Mathematically, this property is expressed by the second-order ODE:
+\begin_inset Formula 
+\begin{equation}
+\frac{\text{d}^{2}x_{k}}{\text{d}t^{2}}+\sum_{i,j}\Gamma_{ij}^{k}\frac{\text{d}x_{i}}{\text{d}t}\frac{\text{d}x_{j}}{\text{d}t}=0\,,\quad\text{for \ \ensuremath{i,j,k\in\{1,2,3\}}},\label{eq:vnr-geodesic-ode}
+\end{equation}
+
+\end_inset
+
+or equivalently
+\begin_inset Formula 
+\begin{equation}
+\frac{\text{d}v_{k}}{\text{d}t}+\sum_{i,j}\Gamma_{ij}^{k}v_{i}v_{j}=0\,,\quad\text{for \ \ensuremath{i,j,k\in\{1,2,3\}}},\label{eq:vnr-geodesic-ode-velocity}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $x_{k}$
+\end_inset
+
+ and 
+\begin_inset Formula $v_{k}$
+\end_inset
+
+ denote the components of 
+\series bold
+
+\begin_inset Formula $\mathbf{x}$
+\end_inset
+
+
+\series default
+ and 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+; and 
+\begin_inset Formula $\Gamma_{ij}^{k}$
+\end_inset
+
+ are the 
+\emph on
+Christoffel symbols
+\emph default
+; second-order properties of the Earth's surface at each point that you
+ might study in a differential geometry course.
+ It is not necessary to know what they are for the purposes of our discussion.
+ What is important is to know that given the initial conditions 
+\begin_inset Formula $\mathbf{x}(0)=A$
+\end_inset
+
+ and 
+\begin_inset Formula $\dot{\mathbf{x}}(0)=\mathbf{v}(0)=\mathbf{v}_{0}$
+\end_inset
+
+ this second-order differential equation 
+\emph on
+determines the rest of the geodesic
+\emph default
+.
+ Following a geodesic means setting out from village A with some initial
+ velocity vector 
+\begin_inset Formula $\mathbf{v}_{0}$
+\end_inset
+
+, and walking in such a way that our path is always locally straight, having
+ zero geodesic curvature.
+ For some choice of initial velocity vector 
+\begin_inset Formula $\mathbf{v}_{0}$
+\end_inset
+
+, we will end up reaching village B at 
+\begin_inset Formula $t=1$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Itemize
+This general approach of starting out from a given point along a given velocity
+ and following a geodesic is called 
+\emph on
+geodesic shooting
+\emph default
+.
+ It allows us to reformulate the shortest path problem in terms of a much
+ simpler unknown, 
+\begin_inset Formula $\mathbf{v}_{0}$
+\end_inset
+
+:
+\begin_inset Formula 
+\begin{equation}
+\mathbf{v}_{0}^{*}=\argmin\limits _{\mathbf{v}_{0}\in\mathbb{R}^{3}}|\mathbf{x}(1)-B|^{2}\quad\text{subject to}\ensuremath{\quad\mathbf{x}(0)=A,\ \dot{\mathbf{x}}(0)=\mathbf{v}_{0}\ \text{and (\ref{eq:vnr-geodesic-ode-velocity})}}.\label{eq:vnr-geodesic-shooting}
+\end{equation}
+
+\end_inset
+
+This problem is similar to rotating a tank to shoot a target, but with the
+ difference that the projectiles move along geodesics.
+ The advantage of this geodesic shooting formulation compared to the the
+ previous formulation (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-geodesic-minimization"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) is that it reduces the search space by a whole dimension.
+ Another advantage is that even if we do not find the minimum of (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-geodesic-shooting"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+), our solutions 
+\begin_inset Formula $\mathbf{x}(t)$
+\end_inset
+
+ obtained by solving the ODE (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-geodesic-ode"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) are always going to be geodesics (just ones that don't quite get us to
+ village B).
+ This is not the case for the previous formulation (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-geodesic-minimization"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+), where solutions short of the minimum are not guaranteed to be geodesics.
+ 
+\end_layout
+
+\begin_layout Standard
+This idea of geodesic shooting extends beautifully to diffeomorphisms.
+ Diffeomorphic flows 
+\begin_inset Formula $\phi_{t}$
+\end_inset
+
+ that correspond to velocity fields 
+\begin_inset Formula $\mathbf{v}_{t}$
+\end_inset
+
+ that minimize the LDDMM energy 
+\begin_inset Formula $E[\mathbf{v};I,J]$
+\end_inset
+
+ are indeed geodesics on the space 
+\begin_inset Formula $\text{Diff}$
+\end_inset
+
+, with their length given by 
+\begin_inset Formula 
+\[
+L[\phi_{1}]^{2}=\|\mathbf{v}\|_{{\cal V}}^{2}\,.
+\]
+
+\end_inset
+
+Consequently, these geodesics satisfy the 
+\begin_inset Quotes eld
+\end_inset
+
+locally straight
+\begin_inset Quotes erd
+\end_inset
+
+ differential equation equivalent to (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-geodesic-ode-velocity"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
+ This equation is called the Euler-Poincaré Differential Equation (EPDiff)
+ and has the following form:
+\begin_inset Formula 
+\begin{equation}
+\frac{\text{d}\mathbf{m}}{\text{d}t}+(D\mathbf{m})\mathbf{v}+(D\mathbf{v})^{T}\mathbf{m}+\mathbf{m}\,(\nabla\cdot\mathbf{v})=\mathbf{0}\,,\label{eq:vnr-geodesic-diff}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $D$
+\end_inset
+
+ denotes the Jacobian matrix, 
+\begin_inset Formula $\nabla\cdot\mathbf{v}$
+\end_inset
+
+ denotes the divergence operator, and 
+\begin_inset Formula $\mathbf{m}$
+\end_inset
+
+ is called the 
+\emph on
+momentum
+\emph default
+, given by 
+\begin_inset Formula 
+\[
+\mathbf{m}={\cal L}^{\dagger}{\cal L}\mathbf{v}\quad(\text{equivalently, \ensuremath{\mathbf{v}={\cal K}\mathbf{m})}}
+\]
+
+\end_inset
+
+The momentum is a time-varying vector field just like 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+, with 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ essentially being a smoothed version of 
+\begin_inset Formula $\mathbf{m}$
+\end_inset
+
+ due to the form of the operator 
+\begin_inset Formula ${\cal L}$
+\end_inset
+
+.
+ This momentum has some analogy with the concept of momentum in particle
+ physics.
+ 
+\end_layout
+
+\begin_layout Standard
+Like the ODE (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-geodesic-ode-velocity"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+), the EPDiff equation is a differential equation involving 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+.
+ Consequently, the solutions of (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-geodesic-ode-velocity"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) are determined by the initial conditions, i.e., the initial velocity field
+ 
+\begin_inset Formula $\mathbf{v}(0)$
+\end_inset
+
+, or equivalently, the initial momentum field 
+\begin_inset Formula $\mathbf{m}(0)$
+\end_inset
+
+ (since velocity and momentum are related to each other by the operator
+ 
+\begin_inset Formula ${\cal L}$
+\end_inset
+
+).
+ Therefore, we can reformulate the problem of diffeomorphic image registration
+ as the problem of geodesic shooting: finding the initial velocity 
+\begin_inset Formula $\mathbf{v}_{0}$
+\end_inset
+
+ (or initial momentum 
+\begin_inset Formula $\mathbf{m}_{0}$
+\end_inset
+
+) for which the geodesic 
+\begin_inset Formula $\phi_{t}$
+\end_inset
+
+ optimally matches images 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J$
+\end_inset
+
+ at time 
+\begin_inset Formula $1$
+\end_inset
+
+.
+ In complete form, this problem is formulated as follows 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "miller06,younes09"
+literal "false"
+
+\end_inset
+
+:
+\begin_inset Formula 
+\begin{multline}
+\mathbf{m}_{0}^{*}=\argmin\limits _{\mathbf{m}_{0}}\intop_{\Omega}\left|I\circ\phi_{1}^{-1}-J\right|^{2}\,,\quad\text{where}\\
+\begin{cases}
+\mathbf{v}_{t}={\cal K}\mathbf{m}_{t}\\
+\frac{\text{d}\mathbf{m}_{t}}{\text{d}t}+(D\mathbf{m}_{t})\mathbf{v}_{t}+(D\mathbf{v}_{t})^{T}\mathbf{m}_{t}+\mathbf{m}_{t}\,(\nabla\cdot\mathbf{v}_{t})=\mathbf{0} & \text{}\\
+\frac{\text{d}\phi_{t}}{\text{d}t}=\mathbf{v}_{t}\circ\phi_{t}
+\end{cases}\label{eq:vnr-shooting-complete}
+\end{multline}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Solving this problem via gradient descent is computationally feasible.
+ It involves pulling back the gradient of the image similarity metric with
+ respect to 
+\begin_inset Formula $\phi_{1}$
+\end_inset
+
+ back through the ODEs for 
+\begin_inset Formula $\phi_{t}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{m}_{t}$
+\end_inset
+
+.
+ While the math for this is rather involved, the approach can be efficiently
+ implemented computationally.
+ As in the simple example introduced above, geodesic shooting offers the
+ following advantages over the variational formulation of LDDMM:
+\end_layout
+
+\begin_layout Itemize
+The optimization is over a single vector field 
+\begin_inset Formula $\mathbf{m}_{0}$
+\end_inset
+
+, as opposed to the time-varying velocity field 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+.
+ This reduces the memory requirements of the algorithm and can lead to faster
+ convergence.
+ 
+\series bold
+Add a sentence on Miaomiao's Fourier domain paper.
+\end_layout
+
+\begin_layout Itemize
+Even if the minimum of the objective is not reached, solutions that are
+ geodesics in 
+\begin_inset Formula $\text{Diff}$
+\end_inset
+
+ are obtained.
+ 
+\end_layout
+
+\begin_layout Subsection
+LDDMM and Computational Anatomy.
+\end_layout
+
+\begin_layout Subsubsection
+Defining Distance on the Space of Diffeomorphic Transformations
+\end_layout
+
+\begin_layout Standard
+In addition to being a formidable image registration method LDDMM gives
+ rise to a family of medical image statistical analysis approaches known
+ as 
+\emph on
+computational anatomy
+\emph default
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "miller02,miller06,younes09"
+literal "false"
+
+\end_inset
+
+.
+ The Sobolev norm 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\|\mathbf{v}\|_{{\cal V}}^{2}$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ can be used to extend the concept of 
+\begin_inset Quotes eld
+\end_inset
+
+distance
+\begin_inset Quotes erd
+\end_inset
+
+ to the space of diffeomorphic transformations 
+\begin_inset Formula $\text{Diff}$
+\end_inset
+
+, and even to the space of medical images.
+ Let 
+\begin_inset Formula $\psi\in\text{Diff}$
+\end_inset
+
+ be a diffeomorphic transformation on 
+\begin_inset Formula $\Omega$
+\end_inset
+
+.
+ Then let us define the distance between the identity transformation (i.e.,
+ the origin of the space 
+\begin_inset Formula $\text{Diff}$
+\end_inset
+
+) and 
+\begin_inset Formula $\psi$
+\end_inset
+
+ as follows:
+\begin_inset Formula 
+\[
+d(\text{Id},\psi)^{2}=\min\limits _{\mathbf{v}\in{\cal V}:\phi_{1}[\mathbf{v}]=\psi}\,\|\mathbf{v}\|_{{\cal V}}^{2}\,,
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\phi_{1}[\mathbf{v}]$
+\end_inset
+
+ denotes the solution of the flow ODE (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-diff-flowode"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+) with input 
+\begin_inset Formula $\mathbf{v}$
+\end_inset
+
+ at time 
+\begin_inset Formula $1$
+\end_inset
+
+.
+ In other words, 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $d(\text{Id},\psi)$
+\end_inset
+
+ is equal to the kinetic energy of the 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+least energetic 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+diffeomorphic flow that has as its end-point the diffeomorphism 
+\begin_inset Formula $\psi$
+\end_inset
+
+.
+ For a pair of diffeomorphic transformations 
+\begin_inset Formula $\psi,\xi$
+\end_inset
+
+, the distance is defined as 
+\begin_inset Formula 
+\[
+d(\xi,\psi)=d(\text{Id},\psi\circ\xi^{-1})\,.
+\]
+
+\end_inset
+
+It 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+quantifies the kinetic energy of the least energetic 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+diffeomorphic flow
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ that maps the end-point of 
+\begin_inset Formula $\xi$
+\end_inset
+
+ to the end-point of 
+\begin_inset Formula $\psi$
+\end_inset
+
+.
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+ Although this distance function is not symmetric, it satisfies the properties
+ of
+\family default
+\series default
+\shape default
+\size default
+\emph on
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ 
+\emph default
+a proper distance function
+\emph on
+ 
+\emph default
+on the space 
+\begin_inset Formula $\text{Diff}$
+\end_inset
+
+:
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+ 
+\begin_inset Formula $d(\xi,\psi)\ge0$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ for all 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\psi,\xi\in\text{Diff}$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+; 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $d(\xi,\psi)=0$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ if and only if 
+\begin_inset Formula $\psi=\xi$
+\end_inset
+
+; and the triangle inequality 
+\begin_inset Formula $d(\xi,\psi)\le d(\xi,\eta)+d(\eta,\psi)$
+\end_inset
+
+ is satisfied for all 
+\begin_inset Formula $\psi,\xi,\eta\in\text{Diff}$
+\end_inset
+
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "miller02"
+literal "false"
+
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Subsubsection
+Defining Distance on the Space of Images
+\end_layout
+
+\begin_layout Standard
+While being able to measure distance between elements of 
+\begin_inset Formula $\text{Diff}$
+\end_inset
+
+ is useful, it would be even more useful to measure distance between images.
+ At first, let us make a rather strong assumption that in our collection
+ of images, any two images can be matched perfectly using some diffeomorphic
+ transformation.
+ This assumption makes sense if all images in the collection are deformations
+ of a template image.
+ It also makes sense for simple images, for example, images of fried eggs.
+ In this setting, we can define the distance between images 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J$
+\end_inset
+
+ as follows:
+\begin_inset Formula 
+\[
+d(I,J)^{2}=\min\limits _{\mathbf{v}\in{\cal V}:I\circ\phi_{1}^{-1}[\mathbf{v}]=J}\,\|\mathbf{v}\|_{{\cal V}}^{2}\,,
+\]
+
+\end_inset
+
+in other words, the kinetic energy of the 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+least energetic diffeomorphic flow that warps 
+\begin_inset Formula $I$
+\end_inset
+
+ to look like 
+\begin_inset Formula $J$
+\end_inset
+
+ at time 
+\begin_inset Formula $1$
+\end_inset
+
+.
+ This distance function on images also behaves like a proper distance function
+ (non-negative, zero only if 
+\begin_inset Formula $I=J$
+\end_inset
+
+, satisfies triangle inequality).
+ 
+\end_layout
+
+\begin_layout Standard
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+In real-world applications, the assumption that 
+\begin_inset Formula $J$
+\end_inset
+
+ can be generated from 
+\begin_inset Formula $I$
+\end_inset
+
+ by a diffeomorphic transformation is too strong, as images have different
+ intensity characteristics, noise, and often the underlying anatomical content
+ is not one-to-one.
+ The concept of distance between images must be relaxed to allow for inexact
+ matching of 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J$
+\end_inset
+
+.
+ A practical approach is to define the inexact distance between 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J$
+\end_inset
+
+ as
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+d_{\text{inexact}}(I,J)^{2}=\min\limits _{\mathbf{v}\in{\cal V}}\text{\ensuremath{E[\mathbf{v};I,J]}}\,,
+\]
+
+\end_inset
+
+where 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $E[\mathbf{v};I,J]$
+\end_inset
+
+ is the LDDMM energy 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+from (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:vnr-lddmm-complete"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+)
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+, i.e., the sum of the kinetic energy of the diffeomorphic flow that best
+ matches 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $J$
+\end_inset
+
+ and a residual intensity difference term.
+ While this definition of distance no longer has the rigorous mathematical
+ properties of the exact distance 
+\begin_inset Formula $d(I,J)$
+\end_inset
+
+, it allows for many practical algorithms where distance between real-world
+ images needs to be computed.
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+The theory of 
+\family default
+\series default
+\shape default
+\emph on
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+image metamorphosis
+\family roman
+\series medium
+\shape up
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "holm09,richardson16"
+literal "false"
+
+\end_inset
+
+ models transformations between images as pairs consisting of a diffeomorphic
+ geometric component and an intensity variation component; and allows for
+ a mathematically robust definition of distance between images that cannot
+ be matched exactly.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Applications to Statistical Analysis of Images
+\end_layout
+
+\begin_layout Standard
+Medical images are data, and we often want to draw inferences from medical
+ images using statistical analysis.
+ Often we derive some summary features from images (e.g., volume of the hippocampu
+s) and perform statistical analysis on these derived measures (What is the
+ average hippocampus volume in a given group? Does the mean hippocampal
+ volume differ between patients and healthy individuals? Does the hippocampal
+ volume change with age?).
+ But summary features do not capture the entirety of information in the
+ image.
+ It would be nice to be able to perform the same kinds of statistical analyses
+ on the images themselves, treating each image not as a source of one or
+ more summary measures, but as a highly-dimensional multi-variate observation.
+\end_layout
+
+\begin_layout Standard
+Of course, images are collections of voxels, and we can treat the vector
+ of all intensities in an image as a multi-variate observation.
+ But because voxels with the same coordinates across different images come
+ from different anatomical locations, any such analysis will be almost meaningle
+ss.
+ For example, averaging a collection of images, voxel-by-voxel, results
+ in a blurry image that looks almost nothing like the source images and
+ tells us nothing about the average anatomy in the collection.
+\end_layout
+
+\begin_layout Standard
+By defining a distance function on the space of images that captures anatomical
+ differences, rather than intensity differences, the LDDMM approach makes
+ it possible to extend various concepts from statistics to the image domain.
+ Many methods in statistics (finding the mean, linear and non-linear regression,
+ dimensionality reduction) are formulated as least square fitting problems.
+ For example, the problem of finding the mean of a sample of multi-variate
+ observations 
+\begin_inset Formula $\mathbf{x}_{1},\ldots,\mathbf{x}_{n}$
+\end_inset
+
+ can be formulated in terms of minimizing the sum of squared distances:
+\begin_inset Formula 
+\begin{equation}
+\overline{\mathbf{x}}_{\text{Fr}}=\argmin\limits_{\mathbf{x}\in{\cal X}}\sum_{i=1}^{n} d(\mathbf{x},\mathbf{x}_{i})^{2}\,.\label{eq:vnr-frechet-1}
+\end{equation}
+
+\end_inset
+
+This definition of the mean is called the 
+\emph on
+Fréchet mean,
+\emph default
+ and unlike the arithmetic mean given by 
+\begin_inset Formula $\frac{1}{n}\sum_{i=1}^{n}\mathbf{x}_{i}$
+\end_inset
+
+, it extends to non-Euclidean spaces.
+ As long as the space 
+\begin_inset Formula ${\cal X}$
+\end_inset
+
+ in which the observations 
+\begin_inset Formula $\mathbf{x}_{1},\ldots,\mathbf{x}_{n}$
+\end_inset
+
+ lie has a distance function, the Fréchet mean is well-defined.
+ It is easy to verify that when 
+\begin_inset Formula ${\cal X}$
+\end_inset
+
+ is a Euclidean space, the Fréchet mean is equal to the arithmetic mean.
+ The Fréchet mean of a set of images 
+\begin_inset Formula $I_{1}\,\ldots,I_{n}$
+\end_inset
+
+ defined on the domain 
+\begin_inset Formula $\Omega$
+\end_inset
+
+ can thus be constructed by solving the following minimization problem:
+\begin_inset Formula 
+\[
+\overline{I}_{\text{Fr}}=\argmin\limits _{I\in{\cal I}_{\Omega}}\sum_{i=1}^{n}d_{\text{inexact}}(I,I_{i})^{2}=\argmin\limits _{I\in{\cal I}_{\Omega},\mathbf{v}_{1}\in{\cal V},\ldots,\mathbf{v}_{n}\in{\cal V}}\sum_{i=1}^{n}\text{\ensuremath{E[\mathbf{v}_{i};I,I_{i}]}}.
+\]
+
+\end_inset
+
+This involves simultaneously searching for a 
+\begin_inset Quotes eld
+\end_inset
+
+synthetic
+\begin_inset Quotes erd
+\end_inset
+
+ mean image 
+\begin_inset Formula $I$
+\end_inset
+
+ and a set of velocity fields 
+\begin_inset Formula $\mathbf{v}_{1},\ldots,\mathbf{v}_{n}$
+\end_inset
+
+ that optimally warp 
+\begin_inset Formula $I$
+\end_inset
+
+ to match the input images.
+ An efficient way to solve this minimization, proposed by Joshi et al., 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "joshi04"
+literal "false"
+
+\end_inset
+
+, is to alternate minimizing over 
+\begin_inset Formula $I$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathbf{v}_{1},\ldots,\mathbf{v}_{n}$
+\end_inset
+
+.
+ The resulting algorithm alternates between 
+\begin_inset Formula $n$
+\end_inset
+
+ independent LDDMM registrations and arithmetic averaging of image intensities,
+ and yields excellent mean images (Figure XXX).
+ These images are commonly used to create 
+\emph on
+population-specific templates
+\emph default
+ for groupwise analysis of medical imaging data [XXX].
+ 
+\end_layout
+
+\begin_layout Standard
+Many other problems in statistics have been extended to the space of images.
+ For example, the equivalent of linear regression (i.e., fitting a slope and
+ an intercept of a line that best describes the relationship between a dependent
+ variable, like hippocampal volume, and an independent variable, like age)
+ is 
+\emph on
+geodesic regression
+\emph default
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "fletcher13"
+literal "false"
+
+\end_inset
+
+.
+ In geodesic regression with a scalar independent variable, we have a set
+ of observations 
+\begin_inset Formula $(t_{i}\in[0,1],I_{i}\in{\cal I}_{\Omega})$
+\end_inset
+
+ and we one seeks to find a time-parameterized sequence of images 
+\begin_inset Formula $I_{t}=I_{0}\circ\phi_{t}$
+\end_inset
+
+ that forms a geodesic in the space of images, such that the sum of squared
+ distances from the observed images to 
+\begin_inset Formula $I_{t}$
+\end_inset
+
+ is minimized.
+ Specifically, one solves a minimization problem
+\begin_inset Formula 
+\[
+(I_{0}^{*},\mathbf{v}^{*})=\argmin\limits _{I_{0}\in{\cal I}_{\Omega},\text{\textbf{v}\ensuremath{\in{\cal V}}}}\sum_{i=1}^{n}\text{\ensuremath{d(I_{0}\circ\phi_{t_{i}}^{\mathbf{v}},I_{i})^{2}}}
+\]
+
+\end_inset
+
+that is conceptually similar to the Fréchet mean problem in that it requires
+ nested minimization.
+ The concept of non-linear regression (i.e., fitting a quadratic or cubic
+ curve to data in a least squares sense) has also been extended to the manifold
+ of images 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "singh14"
+literal "false"
+
+\end_inset
+
+.
+ So have been the concepts of mixed modeling for longitudinal image analysis
+ [XXX], principal components analysis for data dimensionality reduction
+ [XXX] and numerous other data analysis techniques that can be framed in
+ terms of distance minimization.
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset bibtex
+LatexCommand bibtex
+bibfiles "/Users/pauly/Documents/tex/shared/bibtex/all"
+options "plain"
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document

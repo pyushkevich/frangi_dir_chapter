@@ -1,0 +1,892 @@
+%% LyX 2.3.3 created this file.  For more info, see http://www.lyx.org/.
+%% Do not edit unless you really know what you are doing.
+\documentclass[english]{article}
+\usepackage[T1]{fontenc}
+\usepackage[latin9]{inputenc}
+\usepackage{array}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{esint}
+
+\makeatletter
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% LyX specific LaTeX commands.
+%% Special footnote code from the package 'stblftnt.sty'
+%% Author: Robin Fairbairns -- Last revised Dec 13 1996
+\let\SF@@footnote\footnote
+\def\footnote{\ifx\protect\@typeset@protect
+    \expandafter\SF@@footnote
+  \else
+    \expandafter\SF@gobble@opt
+  \fi
+}
+\expandafter\def\csname SF@gobble@opt \endcsname{\@ifnextchar[%]
+  \SF@gobble@twobracket
+  \@gobble
+}
+\edef\SF@gobble@opt{\noexpand\protect
+  \expandafter\noexpand\csname SF@gobble@opt \endcsname}
+\def\SF@gobble@twobracket[#1]#2{}
+%% Because html converters don't know tabularnewline
+\providecommand{\tabularnewline}{\\}
+\floatstyle{ruled}
+\newfloat{algorithm}{tbp}{loa}
+\providecommand{\algorithmname}{Algorithm}
+\floatname{algorithm}{\protect\algorithmname}
+
+\makeatother
+
+\usepackage{babel}
+\usepackage{listings}
+\renewcommand{\lstlistingname}{Listing}
+
+\begin{document}
+
+\part{Deformable Image Registration}
+
+\global\long\def\argmin{\operatornamewithlimits{\arg\min}}%
+
+
+\section{Introduction}
+
+Deformable image registration (DIR) is one of the most studied problems in the medical image analysis field. It has led to elegant mathematical solutions that tie together elements of group theory, differential geometry, and probability theory. This chapter describes the basic building blocks of DIR, and provides the theoretical outlines of some widely used algorithms. 
+
+\subsection{What is DIR and what are its applications?}
+
+In this chapter, we will use the following definition of DIR:
+\begin{quote}
+\emph{DIR is the process of}\textbf{\emph{ }}\emph{non-linearly transforming the space in which images are defined}\textbf{\emph{ }}\emph{in order to match corresponding anatomical locations between images. }
+\end{quote}
+There are several key concepts in this definition:
+\begin{itemize}
+\item DIR is about transforming the space in which images ``live'', rather than images themselves. This is a critical aspect of DIR that can be confusing to newcomers. Mathematically, DIR will be described in terms of functions $\phi:\Omega\rightarrow\Omega$ that map points in the image domain $\Omega\subset\mathbb{R}^{n}$ to other points in $\Omega$. These functions are called \emph{spatial transformations, spatial maps, }or simply\emph{ warps.}
+\item Unlike in rigid or affine registration, in DIR we are interested in transformations that are \emph{non-linear. }This offers many more (in fact, infinitely many) degrees of freedom for transforming images. This in turn allows DIR to match images more precisely. The disadvantage is added computational complexity, and the need to ensure that transformations \emph{$\phi$ }are well-behaved. For example, a lot of research has focused on constraining transformations $\phi$ to be \emph{invertible}, which prevents them from tearing or folding the image domain $\Omega$.
+\item The goal of DIR is to match up \emph{corresponding anatomical locations }between images. For example, when performing DIR on images of faces, corresponding anatomical locations may be the corners of the eyes and lips, tip of the nose, etc. Clearly, the concept of anatomical correspondence is rather tenuous. For example when it comes to matching hair between different people, or between different images of the same person, correspondence is ill defined. This is also true in medical images. For example, in the brain, we might be able to match up certain places in the lateral ventricles and subcortical gray matter structures such as the thalamus between individuals, but not so for cortical folds, as the folding pattern of every brain is unique like a fingerprint. The presence of tumors and lesions in some individuals and not in others makes it even more difficult to find anatomical correspondences. However, these challenges have not prevented DIR from being one of the most useful techniques in medical imaging research.
+\end{itemize}
+DIR has many important applications in medical imaging research:
+\begin{itemize}
+\item DIR is used for anatomical normalization in population studies that involve imaging. Consider, for example, functional MRI research, which has transformed the fields of psychology, psychiatry, sociology, linguistics, etc. In a typical study, researchers recruit a cohort of individuals (e.g., 20 volunteers) and scan their brains using fMRI under various experimental conditions (e.g., reading long sentences vs. reading short sentences). Analyzing the MRI data from each participant results in a ``heat map'' that describes experiment-related brain activity in each location of the brain. In order to describe the effects of the experiment at the \emph{population level}, rather than individual level, the brains of these different individuals are transformed to a ``template'' brain using DIR, so that the corresponding anatomical regions are matched up between different individuals. \textbf{{[}Reference Atlas Chapter{]}}
+\item DIR is used to quantify changes in longitudinal imaging. Patients undergoing monitoring or treatment for chronic diseases are often scanned at different times and changes between these longitudinal scans are used to assess the progression of disease or efficacy of treatment. For example, in multiple sclerosis, the changes in size and number of white matter lesions is used clinically to determine whether a treatment regimen is effective. DIR between images obtained at different time points produces a transformation that matches anatomical locations across time. Examining the geometric properties of this transformation (i.e., whether it shrinks space or expands space at different locations in the image domain) can provide accurate measurements of change in the size of white matter lesions. Such measurements are much more effective than visual examination of longitudinal images, particularly when changes over time are subtle.
+\item DIR is used to account for motion of organs and tissues, for example during surgery. In image-guided surgery, it is common to acquire pre-operative high-resolution images of the patient's anatomy (e.g., a high-resolution CT) for planning purposes; and to collect lower-resolution images intraoperatively for surgical guidance (e.g., using 3D ultrasound or 2D fluoroscopy). In many parts of the body, such as the abdomen, organs shift, and performing only rigid or affine registration between the preoperative and intraoperative images would result in misalignment and lead to surgical errors. DIR can help account for organ motion.
+\item DIR is a building block of many image analysis algorithms, among them, atlas-based and multi-atlas segmentation. When you are interested in segmenting a certain anatomical structure and you have an example or set of example images in which this structure has already been segmented, performing DIR between these example images and new (not yet segmented) images provides a set of transformations from the example segmentations to the new image. Transforming the example segmentations (an when there are multiple segmentations, combining them in some smart way) yields a segmentation of the new image. \textbf{{[}POINT TO MALF chapter{]}}. 
+\end{itemize}
+
+\subsection{DIR Problem Setup}
+
+\begin{figure}
+\centering{}\includegraphics[width=1\columnwidth]{figs/lung_registration}\caption{An example of deformable registration between two 3D chest CT images of the same individual during inhalation/exhalation. The spatial transformation $\phi_{\theta}$ is visualized by plotting how it deforms a rectangular grid in the image domain $\Omega$. \label{fig:vnr-dir-lungs}}
+\end{figure}
+
+In this subsection, we discuss the general structure of DIR algorithms. An example of DIR between two chest CT scans of the same individual is shown in Figure~\ref{fig:vnr-dir-lungs}.
+
+In most algorithms, DIR is formulated as an energy minimization problem in the following form:
+\begin{equation}
+\theta^{*}=\arg\min_{\theta\in\Theta}E[\phi_{\theta};I,J]\quad\mbox{where }\quad E[\phi_{\theta};I,J]=\mu[I,J\circ\phi_{\theta}]+\lambda\rho[\theta]\,.\label{eq:energy}
+\end{equation}
+Let us carefully consider each term in the above expression:
+\begin{itemize}
+\item $\phi_{\theta}:\Omega\rightarrow\Omega$ is the \emph{spatial transformation} that maps the image domain $\Omega\subset\mathbb{R}^{n}$ onto itself. It is a continuous function of $n$ variables that has $n$ components. For example, in two dimensions, we may write $\phi_{\theta}$ as a vector
+\[
+\phi_{\theta}(\mathbf{x})=\left[\begin{array}{c}
+\phi_{\theta}^{1}(x_{1},x_{2})\\
+\phi_{\theta}^{2}(x_{1},x_{2})
+\end{array}\right]\,,
+\]
+where $\phi_{\theta}^{1}$ and $\phi_{\theta}^{2}$ are scalar functions, called the components of $\phi_{\theta}$. 
+\item $I$ and $J$ are images. In the theoretical portions of this chapter, we will treat them as continuous functions defined on the image domain, i.e., $I,J:\Omega\rightarrow\mathbb{R}$. We shall use ${\cal I}_{\Omega}$ to denote the space of all images on $\Omega$. We typically distinguish between the \emph{reference image }(alternatively called \emph{fixed image}), which remains unchanged over the course of the energy minimization; and the \emph{moving image}, which is affected by the transformation $\phi_{\theta}$. In expression (\ref{eq:energy}), $I$ is the reference image and $J$ is the moving image. 
+\item $J\circ\phi_{\theta}$ is the \emph{transformed moving image. }It is the result of applying the transformation $\phi_{\theta}$ to the moving image $J$. The mathematical symbol $\circ$ denotes composition, and will be used throughout this chapter. The composition notation is convenient for avoiding having to write the arguments of images and transforms. $J\circ\phi_{\theta}$ is a continuous image on the domain $\Omega$, given by
+\[
+(J\circ\phi_{\theta})(\mathbf{x})=J(\phi_{\theta}(\mathbf{x}))\,.
+\]
+\item $\theta$ represents the set of \emph{transformation parameters}. These parameters determine the function $\phi_{\theta}$, i.e., different values of $\theta$ correspond to different spatial transformations $\phi_{\theta}$. The objective of DIR is to determine the transformation parameters that yield the optimal spatial transformation matching the input images $I$ and $J$. 
+\begin{itemize}
+\item In the first class of DIR methods that we will study, called \emph{parametric} \emph{DIR}, $\theta$ will be a finite vector of unknown values. These coefficients are used to define a spatial transformation $\phi_{\theta}$ using a system of basis functions. For example, $\theta$ may consist of displacement vectors placed on a grid of control points, from which the continuous transformation $\phi_{\theta}$ is derived using interpolation. When the set of transformation parameters is finite, the registration problem (\ref{eq:energy}) can be solved using multivariate optimization methods, e.g., using gradient descent or Newton's method.
+\item \emph{Non-parametric} DIR methods, which we will study later, have infinitely many transformation parameters, that is to say, $\theta$ is modeled as an unknown function, and solving the registration problem (\ref{eq:energy}) requires tools of variational calculus. Sometimes in non-parametric methods we do not even distinguish between $\theta$ and $\phi_{\theta}$, i.e., the unknown parameters and the spatial transformation are the same thing. In this case we can rewrite (\ref{eq:energy}) omitting $\theta$ altogether:
+\[
+\phi^{*}=\arg\min_{\phi:\Omega\rightarrow\Omega}E[\phi;I,J]
+\]
+\end{itemize}
+\item $\Theta$ represents the set of all possible values that the transformation parameters $\theta$ may assume. 
+\item $\mu[\bullet,\bullet]$ is the \emph{image dissimilarity metric.} It takes as input two images and returns a value that measures how anatomically dissimilar the two images are. The greater the dissimilarity, the larger the value of the metric. Image dissimilarity metrics are discussed in \textbf{Chapter XXX}. In this Chapter, we will primarily use the \emph{mean squared intensity difference} metric, which has the simple form
+\[
+\mu_{\mathrm{MSID}}[I,J]=\int_{\Omega}\left[I(\mathbf{x})-J(\mathbf{x})\right]^{2}\,\mathrm{d}\mathbf{x}\,.
+\]
+However, other metrics defined in in \textbf{Chapter XXX} are also commonly used in DIR, often with better results than the MSID metric.
+\item $\rho[\theta]$ is the regularization term. It can be used to impose soft constraints on the transformation $\phi_{\theta}.$ Since DIR problems have a very large number of degrees of freedom in specifying $\phi_{\theta}$, some form of regularization is necessary to make the optimization problem (\ref{eq:energy}) well-posed and to prevent unrealistic transformations, e.g. ones that fold the space $\Omega$ onto itself. The term $\rho[\theta]$ is designed by the algorithm developer in such a way that when the transformation $\phi_{\theta}$ becomes unrealistic, the value of $\rho[\theta]$ becomes large, thus penalizing this particular choice of parameters $\theta$. By minimizing the weighted sum of the metric and regularization terms (with weighting provided by the constant $\lambda$), registration algorithms seek a tradeoff between good matching of anatomy that is achieved when the metric is minimized, and avoiding unrealistic transformations. Regularization terms are different in different algorithms, but typically involve differential terms that encourage solutions $\phi_{\theta}$ to be smooth and bounded. In some applications, regularization is used to imbue $\phi_{\theta}$ with specific physical or geometric properties, such as local preservation of area or volume. 
+\end{itemize}
+
+\subsection{Outline of the Chapter}
+
+In the rest of the chapter, we will explore several representative DIR techniques. 
+\begin{itemize}
+\item \textbf{Key Mathematical Concepts} will be reviewed in Section \ref{sec:vnr-math-concepts}. Specifically, we will focus on the concept of diffeomorphisms, a subset of spatial transformations that are smooth and invertible.\textbf{ }
+\item \textbf{Parametric DIR Methods }will be discussed in Section \ref{sec:vnr-parametric}. These methods use interpolation techniques such as \emph{radial basis functions} or \emph{b-splines} to describe continuous transformations $\phi_{\theta}$ using a finite set of parameters $\theta$. 
+\item \textbf{Optical Flow and Related Non-Parametric DIR Methods} will be discussed in Section \ref{sec:vnr-oflow}. Optical flow is not strictly a registration technique, but a way of computing velocities of moving objects in pairs of images taken a short time apart. However, the concept of optical flow is very useful to understanding popular non-parametric registration techniques like the Demons algorithm \cite{thirion96} and its more recent variants \cite{vercauteren09,avants08media}.
+\item \textbf{Large Deformation Diffeomorphic Metric Mapping (LDDMM)}, which will be discussed in Section \ref{sec:vnr-lddmm}, is a category of non-parametric methods that allow DIR to be formulated as an energy minimization problem while constraining the solutions $\phi$ to be smooth and invertible (diffeomorphic). LDDMM also provides a mathematically sound way to measure distances and perform statistics in the infinite-dimensional space of images, and for this reason it has found extensive applications in studies of anatomical variability. 
+\end{itemize}
+
+\section{Mathematical Concepts}
+
+\label{sec:vnr-math-concepts}
+
+This section introduces several mathematical concepts that will be used throughout the rest of the chapter. These concepts primarily involve spatial transformations.
+
+\subsection{General Concepts for Transformations}
+
+\subsubsection{Transformation vs. Displacement.}
+
+As noted above, a spatial transformation $\phi:\Omega\rightarrow\Omega$ is a mapping of the image domain $\Omega$ onto itself. A special case is the \emph{identity transformation} $\mathrm{Id}$ that maps every point to itself:
+\begin{equation}
+\mathrm{Id}(\mathbf{x})=\mathbf{x}\,.\label{eq:vnr-id-transform}
+\end{equation}
+
+It is sometimes convenient to express spatial transformations as a sum of the identity transformation and a vector-valued function called a \emph{displacement:}
+\[
+\phi(\mathbf{x})=\mathbf{x}+\text{\textbf{u}(\textbf{x})}\,.
+\]
+The distinction between transformations and displacements is simple, but important. The function $\phi(\mathbf{x})$ describes the \emph{new position} of point \textbf{$\mathbf{x}$} after the transformation. The displacement \textbf{u}(\textbf{x}) describes the \emph{change} in the position of a point \textbf{x }under the transformation $\phi$. For example, in two dimensions, $\phi$ might map the point $(2.0,2.1)$ to a new coordinate $(2.4,1.9)$. The corresponding displacement is $(0.4,-0.2)$. We will use Greek letters $\phi,\psi$ to denote transformations, and boldface Roman letters $\mathbf{u},\mathbf{v}$ to denote displacements. 
+
+The reason why it is convenient to represent transformations as displacements is that a given displacement value such as $(0.4,-0.2)$ can be interpreted the same way everywhere in the domain $\Omega$. By contrast, a transformation value (2.4,1.9) has a different interpretation depending on $\mathbf{x}$. In DIR algorithms, we often want to restrict the transformation $\phi$ to be close to identity over some regions, particularly near the boundary of $\Omega$. Enforcing this condition as $\text{\textbf{u}(\textbf{x})\ensuremath{\simeq}\textbf{0}}$ during operations such as smoothing or interpolation is simpler algorithmically than enforcing $\phi(\mathbf{x})\simeq\mathbf{x}$. Most computer implementations of DIR algorithms represent transformations in memory as displacements. 
+
+\subsubsection{Composition. }
+
+Given a pair of transformations $\phi,\psi:\Omega\rightarrow\Omega$, the composition of $\phi$ and $\psi$ is a new transformation denoted $\phi\circ\psi$, defined as:
+\[
+(\phi\circ\psi)(\mathbf{x})=\phi(\psi(\mathbf{x}))\,.
+\]
+Intuitively, $\phi\circ\psi$ is the transformation we get by first applying the transformation $\psi$ and then applying the transformation $\phi$. It is easy (and a good exercise) to show that the displacement \textbf{w} corresponding to the transformation $\phi\circ\psi$ has the form
+\[
+\mathbf{w}(\mathbf{x})=\mathbf{v}(\mathbf{x})+\mathbf{u}(\mathbf{x}+\mathbf{v}(\mathbf{x}))\,,
+\]
+where $\mathbf{u}$ and $\mathbf{v}$ are the displacements corresponding to the transformations $\phi$ and $\psi$, respectively.
+
+\subsubsection{Computer Implementation.}
+
+When representing transformations in the computer we will almost always represent them as displacements. The $n$ components of the displacement $\mathbf{u}$ can be stored as $n$-dimensional images. The composition of two transformations can be computed using built-in functions for interpolation available in many software libraries. The following MATLAB listings show functions for applying a spatial transformation to an image and for composing two spatial transformations.
+
+\begin{lstlisting}[language=Matlab,basicstyle={\scriptsize\ttfamily}]
+function J_warped = warp_image_2D(I, J, ux, uy)
+
+% 	I: reference/fixed image
+% 	J: moving image 
+% 	ux, uy: x and y components of transformation phi
+%     J_warped: the transformed (warped) moving image
+
+% Create a coordinate grid over the reference image domain
+[x,y] = ndgrid(1:size(I,1), 1:size(I,2));
+
+% Interpolate the moving image
+J_warped = interpn(J, px + ux, py + uy, '*linear', 0)
+\end{lstlisting}
+
+\begin{lstlisting}[language=Matlab,basicstyle={\scriptsize\ttfamily}]
+function [wx,wy] = compose_transformations_2D(I, ux, uy, vx, vy)
+
+% 	I: reference/fixed image
+% 	ux, uy: x and y components of transformation phi
+% 	vx, vy: x and y components of transformation psi
+% 	wx, wy: x and y components of phi composed with psi
+
+% Create a coordinate grid over the reference image domain
+[x,y] = ndgrid(1:size(I,1), 1:size(I,2));
+
+% Perform the composition
+wx = vx + interpn(ux, px + vx, py + vy, '*linear', 0)
+wy = vy + interpn(uy, px + vx, py + vy, '*linear', 0)
+\end{lstlisting}
+
+
+\subsubsection{Jacobian Matrix and Determinant}
+
+\begin{figure}
+\centering{}\includegraphics[width=1\columnwidth]{figs/jacobian}\caption{An example of a Jacobian determinant map derived from deformable registration between two MRI scans of the brain of the same individual taken one year apart. In the presence of neurodegenerative disease, brain gray matter (gray) visibly atrophies and cerebrospinal fluid (dark) expands. The Jacobian map (plotted here on the logarithmic scale) highlights regions of expansion (red) and shrinkage (blue). \label{fig:vnr-jacobian}}
+\end{figure}
+
+An important property of a transformation around a point is whether it expands or compresses space. For example, with aging, gray matter structures in the brain compress (due to loss of neurons and synapses) while the cerebrospinal fluid in the brain expands to fill in the space (Figure~\ref{fig:vnr-jacobian}). The local expansion or compression caused by a spatial transformation $\phi$ is measured by the determinant of the \emph{Jacobian} \emph{matrix}:
+
+\begin{equation}
+|D\phi|=\det\left[\begin{array}{ccc}
+\frac{\partial\phi^{1}}{\partial x_{1}} & \cdots & \frac{\partial\phi^{1}}{\partial x_{n}}\\
+\vdots & \ddots & \vdots\\
+\frac{\partial\phi^{n}}{\partial x_{1}} & \cdots & \frac{\partial\phi^{n}}{\partial x_{n}}
+\end{array}\right]\,.\label{eq:jacobian-1}
+\end{equation}
+
+To interpret $|D\phi|$ geometrically, consider a small equilateral triangle (or in 3D, a tetrahedron) $T_{\mathbf{x},\epsilon}$ with sides of length $\epsilon$ that is centered around a point $\mathbf{x}\in\Omega$. The transformation $\phi$ will map the corners of $T_{\mathbf{x},\epsilon}$ to new locations, forming a new triangle/tetrahedron $\phi T_{\mathbf{x},\epsilon}$. The ratio of the areas/volumes of $\phi T_{\mathbf{x},\epsilon}$ and $T_{\mathbf{x},\epsilon}$ describes the local expansion/contraction of space around \textbf{$\mathbf{x}$}. The Jacobian determinant $|D\phi|$ is simply the limit of this area/volume ratio as $\epsilon\rightarrow0$.\footnote{Technically, this statement is correct only when using a signed definition of the area/volume. If a transformation changes the order of the vertices of the triangle (e.g., from clockwise to counterclockwise) or the order of the faces of the tetrahedron, then the area/volume is taken with a negative sign. } When $|D\phi|=1$, there is no change in volume, when $0<|D\phi|<1$, the transformation is associated with shrinking around $\mathbf{x}$, and when $|D\phi|>1$, it is associated with expansion. Negative values of $|D\phi|$ occur when the transformation $\phi$ causes the space to fold. 
+
+\subsection{Diffeomorphisms\protect\footnote{This section is important for understanding the diffeomorphic registration techniques discussed in Sections \ref{sec:vnr-oflow} and \ref{sec:vnr-lddmm}. Readers interested in a quick overview of deformable registration can skip the rest of the section. }}
+
+\label{subsec:vnr-sec-math-diff}
+
+It is impossible to discuss modern approaches to image registration without mentioning diffeomorphisms. A spatial transformation $\phi:\Omega\rightarrow\Omega$ is \emph{a diffeomorphism} if $\phi$ is differentiable and has a differentiable inverse $\phi^{-1}:\Omega\rightarrow\Omega$, i.e.,
+\[
+\phi^{-1}(\phi(\mathbf{x}))=\mathbf{x}\quad\forall\mathbf{x}\in\Omega\,,
+\]
+or, written in terms of composition, 
+\[
+\phi^{-1}\circ\phi=\text{Id}\,.
+\]
+
+In many applications of DIR, we require the solutions to be diffeomorphisms. There are multiple reasons for this, such as:
+\begin{itemize}
+\item DIR is often used to map per-pixel measurements from the moving image to the fixed image (this data may be in the form of segmentations, statistical maps such as those derived from functional MRI experiments, etc.). In the course of analysis it is often necessary to also be able to map the information in the opposite direction, from fixed to moving. For example, in functional MRI analysis, we may map information from individual brains to a template brain in order to perform group analysis and identify brain regions associated with a particular cognitive function, such as finger tapping. We then want to be able to map these regions back into individual subjects' brains for secondary analyses (e.g., brain network analyses). When DIR produces diffeomorphic transformations, we are guaranteed that information can be mapped in both directions.
+\item In many research studies, the transformations derived by DIR are used as the source of features for statistical analysis. In \emph{deformation-based morphometry (DBM) }\cite{hua09}, DIR is performed between a pair of scans of the same individual taken some time apart. The Jacobian determinant of the transformation $\phi$ is then analyzed to identify anatomical regions where tissue has shrunk or expanded over time. Such measures of tissue loss and expansion can be sensitive to subtle atrophy that occurs in the brain in some neurodegenerative diseases, such as Alzheimer's. However, when a transformation $\phi$ is not invertible, there exist points in $\Omega$ where $|D\phi|\le0$, which corresponds to the folding or self-intersection of the space, and cannot be interpreted in an anatomically meaningful way. Therefore, in DBM studies, we aim to restrict solutions of DIR to diffeomorphisms. 
+\item When modeling the motion of organs such as the beating heart, the underlying anatomy is known a priori to deform in a way that is diffeomorphic, so it is only natural to require the solutions of DIR to be diffeomorphisms. 
+\end{itemize}
+\begin{figure}
+\centering{}\includegraphics[width=1\columnwidth]{figs/warp_examples}\caption{Examples of diffeomorphic (a, b) and not diffeomorphic (c, d) transformations. Even though transformation (c) is very smooth, it is not invertible.\label{fig:vnr-warp-examples}}
+\end{figure}
+
+Examples of diffeomorphic and non-diffeomorphic transformations in two dimensions are shown in Figure~\ref{fig:vnr-warp-examples}. An important observation is that \emph{smoothness is not a sufficient condition for a diffeomorphism}: it is possible to have a very smooth transformation that does not have an inverse, just like the function $f(x)=(2x-1)^{2}$ does not have an inverse on the interval $x\in[0,1].$
+
+\subsubsection{Group of Diffeomorphisms}
+
+An important property of diffeomorphisms is that they \emph{form a group under the operation of composition}, called $\mathrm{Diff.}$ Specifically, it is easy to verify that the four conditions of a set being a group are met:
+\begin{itemize}
+\item \textbf{Closure}: $\phi\circ\psi\in\mathrm{Diff}$ for all $\phi,\psi\in\mathrm{Diff}$.
+\item \textbf{Identity}: There exists an element $\mathrm{Id}\in\mathrm{Diff}$ that satisfies $\phi\circ\mathrm{Id}=\mathrm{Id}\circ\phi=\phi$ for all $\phi\in\mathrm{Diff}$. 
+\item \textbf{Associativity}: For all $\phi,\psi,\chi\in\mathrm{Diff}$, $(\phi\circ\psi)\circ\chi=\phi\circ(\psi\circ\chi)$.
+\item \textbf{Inverse}: For all $\phi\in\mathrm{Diff}$, there exists $\phi^{-1}\in\mathrm{Diff}$ such that $\phi\circ\phi^{-1}=\phi^{-1}\circ\phi=\mathrm{Id}$.
+\end{itemize}
+One important property of diffeomorphisms is that the Jacobian determinant of $\phi\in\mathrm{Diff}$ is non-negative for all $\mathbf{x}\in\Omega$. Conversely, if $\phi$ is a differentiable vector-valued function that satisfies $|D\phi|>0$ for all $\mathbf{x}\in\Omega$, then $\phi$ is a diffeomorphism.
+
+\subsubsection{Small Transformations}
+
+While it is easy to define what a diffeomorphism is, it is less obvious how one would go about generating diffeomorphisms. A useful building block are the so-called \emph{small transformations}. Let $\mathbf{u}:\Omega\rightarrow\mathbb{R}^{n}$ be a vector-valued function that is differentiable, bounded and has a bounded derivative, i.e., $|\mathbf{u}|+|D\mathbf{u}|\le M$ for all $\mathbf{x}\in\Omega$ and some $M>0$. Let us denote the space of all such functions ${\cal U}$.
+
+Then for a sufficiently small $\epsilon>0$, the transformation
+\[
+\psi(\mathbf{x})=\mathbf{x}+\epsilon\mathbf{u}(\mathbf{x})
+\]
+has a positive Jacobian determinant for every $\mathbf{x}\in\Omega$, and therefore is a diffeomorphism. We call $\psi$ a small transformation because it only slightly deviates from $\mathrm{Id}$. 
+
+Now, since a composition of two diffeomorphisms is a diffeomorphism, we can use small transformations to build up larger transformations. Given a set of functions $\mathbf{u}_{1},\ldots,\mathbf{u}_{n}$ in ${\cal U}$, we can compose the corresponding small transformations $\psi_{i}(\mathbf{x})=\mathbf{x}+\epsilon\mathbf{u}_{i}(\mathbf{x})$, yielding a ``large'' transformation $\phi$ that is diffeomorphic:
+\begin{equation}
+\phi=\psi_{n}\circ\psi_{n-1}\circ\ldots\circ\psi_{1}\,.\label{eq:vnl-diff-small}
+\end{equation}
+
+The key observation here is that it is relatively easy to generate vector-valued functions that are differentiable and bounded (e.g., this can be done by interpolating a discrete set of vectors placed in $\Omega)$. The recipe above provides a way to use such functions to generate diffeomorphic transformations, which form a highly non-linear subspace of the space of all transformations. The general idea of generating diffeomorphic transformations by composing small transformations is used throughout the later portion of this chapter.
+
+\subsubsection{Flow Ordinary Differential Equation\label{subsec:vnr-diff-flowode}}
+
+Another closely related way to generate diffeomorphisms in $\mathbb{R}^{n}$ is by means of the flow ordinary differential equation (ODE) \cite{arnold66}. Instead of defining a discrete set of functions $\mathbf{u}_{1},\ldots,\mathbf{u}_{n}$ in ${\cal U}$ as we did above, let us consider a function $\mathbf{v}(\mathbf{x},t):\Omega\times[0,1]\rightarrow\mathbb{R}^{n}$, where $t$ is a time dimension. Let $\mathbf{v}$ be differentiable in $t$ and let $\mathbf{v}(\bullet,t)\in{\cal U}$ for all $t$. We will call this function a \emph{time-varying velocity field}. Think of it as a function that describes the wind velocity in a region of space over time. Now consider a large collection of particles (like dust or seed pods) that are being carried around by the wind. Let the trajectory of the particle located at coordinate \textbf{$\mathbf{x}$} at time $0$ particle be denoted by the function $\phi(\mathbf{x},t)$. The relationship between the particle trajectories and the wind field is expressed by the following \emph{flow ODE}: 
+\begin{equation}
+\frac{\text{d}\phi}{\text{d}t}(\mathbf{x},t)=\mathbf{v}(\phi(\mathbf{x},t),t)\,,\quad\text{subj. to}\,\,\phi(\mathbf{x},0)=\mathbf{x}\,.\label{eq:vnr-diff-flowode}
+\end{equation}
+The equation states that the trajectory of every particle is tangent to the wind direction at its current location. The existence and uniqueness theorem for first-oder ODEs implies that the solutions of this equation are diffeomorphisms for all $t\in[0,1]$. \cite{arnold98}. Hence, the flow ODE provides us with another recipe to generate diffeomorphisms given only moderately constrained vector-valued functions. We can think of the flow ODE as a ``black box'' that takes as its input a smooth and bounded time-varying velocity field and outputs a diffeomorphic transformation $\phi(\mathbf{x},1)$. Figure~\ref{fig:vnr-flow-1d} illustrates the flow ODE in one spatial dimension.
+
+\begin{figure}
+\centering{}\includegraphics[width=1\columnwidth]{figs/flow_ode_1d}\caption{Illustration of the flow ODE for one spatial dimension. In \textbf{(a)}, the gray arrows represent the time-varying velocity field $v(x,t)$ and the blue, red, and green curves represent the solution of the flow ODE, $\phi(x,t)$, for $x=0.1$, $x=0.4$, and $x=0.5$. The tangent lines to the curves coincide with the velocity field (as prescribed by the flow ODE). The red and blue curves come very close to each other after $t>0.5$, but never cross, so that the order of the curves is maintained through time. In \textbf{(b)}, the solution of the flow ODE is plotted for regularly spaced values of $x$, again illustrating that the paths never cross and the order of the curves is maintained over time. In \textbf{(c)}, the end point of the flow, $\phi(x,1)$, is plotted as a function of $x$. The function $\phi(x,1)$ is monotonic in $x$, and smooth, hence it is a diffeomorphism. \label{fig:vnr-flow-1d}}
+\end{figure}
+
+There is a close relationship between the flow ODE and our previous recipe of generating diffeomorphisms by composing a sequence of small deformations. Let us approximate the solution of the flow ODE using Euler's method. Euler's method is based on the approximation $\frac{\text{d}\phi}{\text{d}t}(\mathbf{x},t)\simeq\frac{\phi(x,t+\delta t)-\phi(x,t)}{\delta t}$, where $\delta t>0$ is a small step size. Plugging this approximation into the ODE leads to the following recurrence:
+\[
+\phi(\mathbf{x},t+\delta t)=\phi(\mathbf{x},t)+\delta t\cdot\mathbf{v}(\phi(\mathbf{x},t),t)\,,
+\]
+which can be rewritten as follows:
+\[
+\phi(\mathbf{x},t+\delta t)=\psi(\phi(\mathbf{x},t))\qquad\text{where }\psi(\mathbf{x})=\mathbf{x}+\delta t\cdot\mathbf{v}(\mathbf{x},t)\,.
+\]
+The function $\psi$ is a small transformation (since $\mathbf{v}$ is smooth and bounded, and $\delta t$ is a small value), and thus for every $t$, the function $\phi(\mathbf{x},t)$ is simply a sequence of compositions of small transformations, just as in (\ref{eq:vnl-diff-small}) above. 
+
+\subsubsection{Scaling and Squaring Algorithm}
+
+Consider the natural exponential function $e^{x}$ from calculus. It has a property that it maps the entire real line $\mathbb{R}$ onto the group of positive real numbers under the operation of multiplication. One way to define the natural exponential function is as follows:
+\[
+e^{x}=\lim_{m\rightarrow\infty}\left(1+\frac{x}{m}\right)^{m}\,.
+\]
+This definition of exponentiation (i.e., taking an element around the identity element of the group, and repeatedly applying the group operation) can be generalized to other groups. For example, the group of rotation matrices in $\mathbb{R}^{3}$ under the operation of matrix multiplication has an equivalent exponential map that maps vectors $\mathbb{R}^{3}$ to rotation matrices:
+\[
+\exp(\mathbf{w})=\lim_{m\rightarrow\infty}\left\{ I_{3\times3}+\frac{1}{m}\begin{bmatrix}0 & -w_{3} & w_{2}\\
+w_{3} & 0 & -w_{1}\\
+-w_{2} & w_{1} & 0
+\end{bmatrix}\right\} ^{m}\,,
+\]
+where $\{\ldots\}^{m}$ means multiplying a matrix by itself $m$ times. For any $\mathbf{w}\in\mathbb{R}^{3}$, the exponential map generates a valid rotation matrix, and conversely, every rotation matrix corresponds to some vector $\mathbf{w}\in\mathbb{R}^{3}$. The beauty of this construct is that it allows us to parameterize a non-linear manifold of rotation matrices, which are orthonormal matrices and have only three degrees of freedom despite having nine elements, using elements of the three-dimensional Euclidean space. 
+
+The equivalent notion of an exponential map can also be defined for the group of diffeomorphisms:
+\begin{equation}
+\exp(\mathbf{u})=\lim_{m\rightarrow\infty}\underbrace{(\text{Id}+\frac{1}{m}\mathbf{u})\circ\ldots\circ(\text{Id}+\frac{1}{m}\mathbf{u})}_{m\,\text{times}}\,.\label{eq:vnr-expmap-diff}
+\end{equation}
+As before, $\exp(\mathbf{u})$ involves the composition of (many) small transformations, and therefore is a diffeomorphism. One of the attractive properties of the exponential map is that if $\phi=\exp(\mathbf{u})$ then the inverse transformation is given by $\phi^{-1}=\exp(-\mathbf{u})$; as is also the case for the natural exponential function and for exponentiation in the group of rotation matrices.
+
+In practice, computing the exponential map as in (\ref{eq:vnr-expmap-diff}) appears prohibitive. However, an excellent approximation of the exponential map is provided by the recursive \emph{scaling and squaring algorithm} \cite{arsigny06a}. Observe than when $m$ in (\ref{eq:vnr-expmap-diff}) is even, due to the associative property of composition, $\exp(\mathbf{u})$ can be computed as the composition of two identical terms, each involving $m/2$ compositions. If we let $m$ be a power of 2, i.e., $m=2^{K}$ for some integer $K$, then the term involving $m/2$ compositions can be computed as the composition of two identical terms each involving $m/4$ compositions, and so on. This leads to the following recursive algorithm:
+\begin{eqnarray*}
+\psi_{1} & = & \text{Id}+\frac{1}{2^{K}}\mathbf{u}\\
+\psi_{k} & = & \psi_{k-1}\circ\psi_{k-1}\qquad\text{for }k=2,\ldots,K\,.\\
+\exp(\mathbf{u}) & \simeq & \psi_{K}
+\end{eqnarray*}
+With this simple algorithm, an excellent approximation of $\exp(\mathbf{u})$ can be obtained in very few iterations (practical values of $K$ are between $5$ and $8$). 
+
+\section{Parametric DIR Methods}
+
+\label{sec:vnr-parametric}
+
+\subsection{Theory.}
+
+Parametric techniques were among the earliest solutions to the problem of DIR \cite{bookstein89,rueckert99}, but they remain widely used today. Several advanced software packages implementing parametric DIR exist, such as \texttt{elastix} \cite{klein09a}and\texttt{ IRTK} \cite{rueckert99}. Parametric DIR methods are among the most accessible to newcomers in the field because they do not require advanced mathematics, such as calculus of variations, to describe. 
+
+The central idea in parametric DIR methods is to model spatial transformations $\phi_{\theta}$ using families of continuous functions weighted by scalar coefficients. In most general form, let $f_{1}:\Omega\rightarrow\mathbb{R},\ldots,f_{K}:\Omega\rightarrow\mathbb{R}$ be some ``family'' of smooth functions. Then in parametric DIR, we model $\phi_{\theta}$ as a weighted sum of these functions with vector-valued coefficients $\theta_{1}\in\mathbb{R}^{n},\ldots,\theta_{K}\in\mathbb{R}^{n}$:
+\begin{equation}
+\phi_{\theta}(\mathbf{x})=\mathbf{x}+\sum_{k=1}^{K}\mathbf{\theta}_{k}f_{k}(\mathbf{x})\,.\label{eq:parawsum}
+\end{equation}
+
+Let us note some properties of this transformation:
+\begin{itemize}
+\item When all the coefficients $\mathbf{\theta}_{k}$ are zeros, $\phi_{\theta}$ is the identity transform $\phi_{\theta}(\mathbf{x})=\mathbf{x}.$
+\item The transformation $\phi_{\theta}$ is a smooth (infinitely differentiable) function as long as each $f_{k}$ is infinitely differentiable.
+\item The transformation $\phi_{\theta}$ is completely determined by the set of coefficients ${\mathbf{\theta}_{k}}.$
+\item With the appropriate choice of functions $f_{k}$ and sufficiently large number of functions/coefficients $K$, any smooth and bounded spatial transformation on domain $\Omega$ can be approximated by the weighted sum (\ref{eq:parawsum}) with arbitrary accuracy.
+\end{itemize}
+\begin{figure}
+\centering{}\includegraphics[width=0.7\columnwidth]{figs/parametric_controls}\caption{Construction of a spatial transformation $\phi_{\theta}$ via interpolation. A grid of control points $\{\mathbf{c}_{k}\}$ is defined over the image domain $\Omega$, and each control point is associated with a coefficient vector $\theta_{k}$. The spatial transformation $\phi_{\theta}$ at each point in $\Omega$ is computed by interpolating the coefficient vectors, e.g., using radial basis function interpolation or b-spline interpolation. \label{fig:vnr-parametric-concept}}
+\end{figure}
+
+Which family of functions should we choose? Perhaps the simplest of all functions used in DIR is the family of \emph{radial basis functions, }defined as follows. Let $\Omega$ be a rectangular domain in $\mathbb{R}^{n}$ and let $\mathbf{c}_{1}\in\Omega,\ldots,\mathbf{c}_{K}\in\Omega$ be a set of points in this domain, called \emph{control points. }For example, control points may lie on a uniform grid, as in Figure~\ref{fig:vnr-parametric-concept}. Associate each control point $\mathbf{c}_{k}$ with a continuous function $f_{k}(\mathbf{x})$:
+\[
+f_{k}(\mathbf{x})=\psi(|\mathbf{x}-\mathbf{c}_{k}|)\,,
+\]
+where $\psi:\mathbb{R}\rightarrow\mathbb{R}$ is some continuous function called the \emph{kernel function}. Plugging this form $f_{k}(\mathbf{x})$ into (\ref{eq:parawsum}), we get the following expression for the spatial transformation $\phi_{\theta}$:
+\[
+\phi_{\theta}(\mathbf{x})=\mathbf{x}+\sum_{k=1}^{K}\mathbf{\theta}_{k}\psi(|\mathbf{x}-\mathbf{c}_{k}|)\,.
+\]
+As illustrated in Figure~\ref{fig:vnr-parametric-concept}, the transformation $\phi_{\theta}(\mathbf{x})$ is a continuous function on the image domain that is fully determined by the coefficients $\theta_{k}$. 
+
+A common choice of kernel function is the Gaussian $\psi(r)=e^{-0.5r^{2}}$. Notice that $f_{k}$ above only depends on the distance from $\mathbf{x}$ to the control point $\mathbf{c}_{k}$, i.e., it is radially symmetric around $\mathbf{c}_{k}$. Such functions are called \emph{radial basis functions}. They were used in some of the earliest DIR papers \cite{bookstein89}, and are just one example of a suitable family of functions for parametric DIR. Other choices are discussed later in this section.
+
+So far, what we have done was to model spatial transformations on the domain $\Omega$ using a $nK$-element vector of coefficients $\theta$ $=\{\theta_{1}\ldots,\theta_{K}\}$. We can now formulate the DIR problem as the problem of finding the set of values $\theta$ that minimizes the dissimilarity between image $I$ and the transformed image $J\circ\phi_{\theta}$:
+\[
+\theta^{*}=\argmin_{\theta\in\mathbb{R}^{nK}}E[\phi_{\theta};I,J]=\argmin_{\theta\in\mathbb{R}^{nK}}\mu[I,J\circ\phi_{\theta}]+\lambda\rho[\theta]\,.
+\]
+
+For simplicity, consider the mean squared intensity difference (MSID) metric and no regularization. Then the energy can be written down in complete form as:
+\begin{equation}
+\theta^{*}=\argmin_{\theta\in\mathbb{R}^{nK}}\int_{\Omega}\left[I(\mathbf{x})-J(\mathbf{\phi_{\theta}(x)})\right]^{2}\,\mathrm{d}\mathbf{x}\,=\argmin_{\theta\in\mathbb{R}^{nK}}\int_{\Omega}\left[I(\mathbf{x})-J(\mathbf{x}+\sum_{k=1}^{K}\mathbf{\theta}_{k}f_{k}(\mathbf{x}))\right]^{2}\,\mathrm{d}\mathbf{x}\,.\label{eq:min_pdir}
+\end{equation}
+ This is an unconstrained energy minimization problem involving $nK$ unknowns, and can be solved using gradient-based numerical optimization methods. For completeness, let us derive the partial derivative of the energy function $E$ with respect to the $m$-th coefficient vector $\theta_{m}:$
+\[
+\frac{\partial E}{\partial\theta_{m}}=2\int_{\Omega}\left[I(\mathbf{x})-J(\mathbf{x}+\sum_{k=1}^{K}\mathbf{\theta}_{k}f_{k}(\mathbf{x}))\right]\left[-\nabla J(\mathbf{x}+\sum_{k=1}^{K}\mathbf{\theta}_{k}f_{k}(\mathbf{x}))\cdot f_{m}(\mathbf{x})\right]\,\mathrm{d}\mathbf{x}\,,
+\]
+ or, in more compact form:
+\begin{equation}
+\frac{\partial E}{\partial\theta_{m}}=-2\int_{\Omega}\left[I-J\circ\phi_{\theta}\right]\left[(\nabla J\circ\phi_{\theta})\cdot f_{m}\right]\,\mathrm{d}\mathbf{x}\,.\label{eq:grad_pdir}
+\end{equation}
+
+
+\subsection{Basic Implementation.}
+
+Implementing the above DIR strategy on real discrete images is not difficult. First, let us consider how to discretize the problem. Images $I$ and $J$ will be discrete images ($n$-dimensional arrays of intensity values). The spatial transformation $\phi_{\theta}$ may be represented as a set of $n$separate $n$-dimensional images, one for each of the components of $\phi_{\theta}$ (i.e., $\phi_{\theta}^{x},\phi_{\theta}^{y},\ldots$). The main operations in (\ref{eq:min_pdir}) and (\ref{eq:grad_pdir}) above are the computation of $\phi_{\theta}(\mathbf{x})$ from the coefficients $\theta$, the computation of $J\circ\phi_{\theta}$, the computation of $\nabla J\circ\phi_{\theta}$, and integration over the image domain. Computing $J\circ\phi_{\theta}$ in the discrete setting involves sampling the values of $J$ at positions $\phi_{\theta}$. In MATLAB, this is accomplished using the command \texttt{interpn}, which interpolates the values of an array at arbitrary sample points.
+
+\subsection{Real-World Approaches}
+
+While the approach sketched out above is relatively simple, the same basic principle is followed by the state-of-the-art parametric DIR techniques. Modern techniques employ more efficient ways to parameterize spatial transformations, more advanced image dissimilarity metrics, incorporate multi-resolution schemes, and provide options for regularizing the transformation $\phi_{\theta}$.
+
+\paragraph{Choice of basis functions.}
+
+A significant limitation of the simple approach based on radial basis functions is that $\phi_{\theta}$ is expensive to compute, requiring $O(KN)$ operations for an image with $N$ pixels or voxels. This is because each of the $K$ basis functions $f_{k}$ is evaluated at each voxel in (\ref{eq:parawsum}). In fact, after discretization, the computation of $\phi_{\theta}$ can be expressed in matrix form:
+\[
+\Phi_{\theta}=\mathrm{Id}+F\cdot\theta
+\]
+ where $F$ is a $N\times nK$ matrix whose columns are the basis functions $f_{k}$ evaluated at all voxels, $\Phi_{\theta}$ is an $N\times n$ matrix describing the transformation $\phi_{\theta}$ at every voxel, and $\mathrm{Id}$ is an $N\times n$ matrix representing the identity transformation, i.e., each row in $\mathrm{Id}$ contains the coordinates of the corresponding voxel. To make this computation more efficient, real-world algorithms use basis functions $\{f_{k}\}$ that have \emph{finite support, }meaning that each $f_{k}$ is non-zero on only a small subset $\Omega_{k}$ of the image domain $\Omega$. In this case, the computational cost of computing $\phi_{\theta}$ is $O(Km)$, where $m\ll N$ is the average size of the domains $\{\Omega_{k}\}.$ This is equivalent to having $F$ be a sparse matrix. 
+
+Rueckert et al. \texttt{\cite{rueckert99}} popularized the use of cubic \emph{b-splines} as the basis for parametric DIR. These bi-cubic (or in 3D, tri-cubic) polynomials are parameterized in terms of a uniform grid of control points, and have finite support, such that each control point influences a $4\times4$ grid cell region around it, and has no effect on $\phi_{\theta}$ outside of this region. Techniques like \texttt{IRTK }\cite{rueckert99}\texttt{, NiftyReg }\cite{modat10} and \texttt{elastix} \cite{klein09a} use \emph{b-splines} to represent spatial transformations.
+
+\paragraph{Support for advanced metrics.}
+
+Important practical considerations in the development of parametric DIR tools is support for multiple image dissimilarity metrics, such as the mutual information metric \cite{wells96,maes97,studholme99} (for across-modality registration), patch-wise cross-correlation metric \cite{hill94,avants07media}, and other advanced metrics. When using more advanced metrics, the computation of the partial derivatives $\frac{\partial E}{\partial\theta_{m}}$ becomes more complex. When DIR is implemented using arbitrary metric $\mu[I,J]$, i.e., 
+\[
+E[\phi_{\theta};I,J]=\mu[I,J\circ\phi_{\theta}]\,,
+\]
+the partial derivatives have the form
+\[
+\frac{\partial E}{\partial\theta_{m}}=\int_{\Omega}(\delta_{J}\mu[I,J\circ\phi_{\theta}])\cdot(\nabla J\circ\phi_{\theta})f_{m}\,\mathrm{d}\mathbf{x}\,
+\]
+where $\delta_{J}\mu:\Omega\rightarrow\mathbb{R}$ denotes the partial Gateaux derivative of $\mu$ with respect to its second input. Whereas in rigid and affine registration derivatives of the registration objective function can be approximated numerically, in parametric DIR there are many more parameters, and numeric computation of derivatives becomes prohibitively expensive. For mutual information and cross-correlation metrics, efficient schemes for computing gradients exist, but are outside of the scope of this book. 
+
+\paragraph{Multi-resolution schemes.}
+
+Multi-resolution is one of the most effective tools in real-world DIR. A multi-resolution pyramid of images is generated from $I$and $J$, typically by subsampling by the factor 2 in each dimension several times. For example, if $I$ has dimensions $256\times256$, the pyramid may contain images of sizes $32\times32$, $64\times64$, $128\times128$, and $256\times256$. Parametric DIR is performed at the lowest resolution first, and the resulting low-resolution transformation $\phi_{\theta}$ is interpolated by the factor of 2 to initialize parametric DIR at the next resolution level, and so on. The number of control points $K$ typically also scales with the resolution. Multi-resolution not only helps DIR converge faster but helps avoid local minima at early stages of registration by matching more prominent features in the images that are visible at low resolution. When subsampling images for multi-resolution schemes, it is important to low-pass filter them appropriately to avoid excessive aliasing due to sampling under the Nyquist frequency (\textbf{Chapter XXX}). An advantage of low-pass filtering is that numerical approximation of $\nabla J$ is more accurate, and hence $\nabla E$ is more accurate as well, leading to better optimization convergence.
+
+\paragraph{Regularization.}
+
+Additional terms can be added to the parametric DIR objective function to impose desired properties on $\phi_{\theta}.$ For instance, it may be desirable to obtain transformations that approximately preserve local area or volume of structures. Mathematically the amount by which the transformation $\phi_{\theta}$ expands or compresses the area/volume of an infinitesimal region around a point $\mathbf{x}\in\Omega$ is given by the \emph{determinant of the Jacobian matrix }of $\phi_{\theta}$ (denoted $\left|D\phi_{\theta}\right|$). When $\left|D\phi_{\theta}\right|<1$, the transformation compresses space around a point, and when $\left|D\phi_{\theta}\right|>1$, it expands space. A regularization term may then be formulated to penalize the deviation of $\left|D\phi_{\theta}\right|$ from $1$, thus favoring transformations that do not compress or expand space too much.
+\[
+\theta^{*}=\arg\min_{\theta\in\mathbb{R}^{n\cdot K}}\mu[I,J\circ\phi_{\theta}]\,+\lambda\int_{\Omega}\left(\left|D\phi_{\theta}\right|-1\right)^{2}\,\mathrm{d}\mathbf{x}.
+\]
+
+An interesting point is that in the parametric DIR framework, it is difficult to enforce strong constraints on the transformation $\phi_{\theta}$, i.e., requiring $\phi_{\theta}$ to be strictly incompressible ($\left|D\phi_{\theta}\right|=1$ at every point). Since $\phi_{\theta}$ is formed as a weighted sum of basis functions $f_{k}$, 
+
+\section{Optical Flow and Related Non-Parametric Methods\label{sec:vnr-oflow}}
+
+Optical flow is a class of techniques used to measure the velocity of moving objects in video sequences. For example, in a self-driving car application, the continuous video feed from the car's camera could be used to determine the velocity of surrounding vehicles and pedestrians. In medical imaging, optical flow can be used to characterize the dynamics of moving organs, such as the beating heart in cine MRI. This application of optical flow is explored in Chapter XXX. But optical flow also serves as a great way to introduce non-parametric DIR algorithms. 
+
+\subsection{Classical Optical Flow }
+
+Let ${\cal I}(\mathbf{x},t):\mathbb{R}^{n}\times[0,t_{\mathrm{max}}]\rightarrow\mathbb{R}$ denote an image changing over time, i.e., a video sequence, where time $t$ spans the interval $[0,t_{\mathrm{max}}]$. The objective of optical flow is to determine at each point in space and time a vector $\vec{v}(\mathbf{x},t)$ that describes the instantaneous velocity of the object located at point $\mathbf{x}$ at time $t$.
+
+\begin{figure}
+
+\begin{centering}
+\includegraphics[width=0.7\columnwidth]{figs/oflow_concept}\caption{Intensity preservation in optical flow. The anatomical location at location $\mathbf{x}_{0}$ at time $t_{0}$ has moved to position $\mathbf{x}_{0}+\delta\mathbf{x}$ at time $t_{0}+\delta t$. We assume that the image intensity associated with this anatomical location is the same at time $t_{0}$ and at time $t_{0}+\delta t$. \label{fig:vnr-oflow-concept}}
+\par\end{centering}
+\end{figure}
+
+The classical optical flow method was proposed by Horn and Schunck in 1981 \cite{horn81} and is summarized below.
+
+\subsubsection{Preservation of Intensity Assumption}
+
+The optical flow approach is based on the following assumption: \emph{as objects move in the video sequence, their intensity remains nearly constant} (Fig.~\ref{fig:vnr-oflow-concept}). In general computer vision problems, this is a strong assumption because the shading of objects changes as they move through the scene and because objects may become occluded by other objects. In 3D medical image sequences this assumption is more reasonable, although noise and partial volume artifacts introduce small changes in the intensity of objects as they move. 
+
+To express the assumption of intensity preservation mathematically, let us consider two images taken a short time apart, $I(\mathbf{x},t_{0})$ and $I(\mathbf{x},t_{0}+\delta t$). Suppose that a point at location $\mathbf{x}_{0}$ at time $t_{0}$ has moved to a new location $\mathbf{x}_{0}+\delta\mathbf{x}$ at time $t_{0}+\delta t$. Since, under our assumption, the intensity of the point $\mathbf{x}_{0}$ is preserved at its new location $\mathbf{x}_{0}+\delta\mathbf{x}$, we have
+\[
+I(\mathbf{x}_{0}+\delta\mathbf{x},t_{0}+\delta t)=I(\mathbf{x}_{0},t_{0})\,.
+\]
+The expression on the left of the equality can be expanded using Taylor's series as follows:
+
+\begin{multline*}
+I(\mathbf{x}_{0}+\delta\mathbf{x},t_{0}+\delta t)=\\
+=I(\mathbf{x}_{0},t_{0}+\delta t)+(\delta\mathbf{x})^{T}I_{\mathbf{x}}(\mathbf{x}_{0},t_{0}+\delta t)+{\cal O}(\delta{}^{2})=\\
+=I(\mathbf{x}_{0},t_{0})+(\delta\mathbf{x})^{T}I_{\mathbf{x}}(\mathbf{x}_{0},t_{0})+(\delta t)I_{t}(\mathbf{x}_{0},t_{0})+{\cal O}(\delta^{2})\,,
+\end{multline*}
+where $I_{\mathbf{x}}$ and $I_{t}$ denote the partial derivatives of $I$ with respect to $\mathbf{x}$ and $t$, and ${\cal O}(\delta^{2})$ represents second and higher-order terms involving $\delta\mathbf{x}$ and \textbf{$\delta t$}. Subtracting the first of the two equations above from the second, we obtain
+\[
+0=(\delta\mathbf{x})^{T}I_{\mathbf{x}}(\mathbf{x}_{0},t_{0})+(\delta t)I_{t}(\mathbf{x}_{0},t_{0})+{\cal O}(\delta^{2})\,,
+\]
+and dividing through by $\Delta t$, we have
+\[
+\left(\frac{\delta\mathbf{x}}{\delta t}\right)^{T}I_{\mathbf{x}}(\mathbf{x}_{0},t_{0})=-I_{t}(\mathbf{x}_{0},t_{0})+{\cal O}(\delta)\,.
+\]
+Now let us consider the limit of this expression as $\Delta t\rightarrow0$. The expression $\frac{\Delta\mathbf{x}}{\Delta t}$ is the ratio between the distance an object travels over a short time interval $\Delta t$ and the said time interval, and as $\Delta t\rightarrow0$, it converges to the instantaneous velocity of the object, $\vec{v}(\mathbf{x}_{0},t_{0})$, which is exactly the quantity that we seek to estimate in optical flow. Also, the limit of ${\cal O}(\delta)$ as $\delta t\rightarrow0$ is zero. Hence, in the limit, the expression above simplifies to
+\[
+\vec{v}(\mathbf{x}_{0},t_{0})^{T}I_{\mathbf{x}}(\mathbf{x}_{0},t_{0})=-I_{t}(\mathbf{x}_{0},t_{0})\,,
+\]
+or just
+\begin{equation}
+\vec{v}^{T}I_{\mathbf{x}}=-I_{t}\,.\label{eq:optflowcon}
+\end{equation}
+This linear relationship between velocity $\vec{v}$, image gradient $I_{\mathbf{x}}$ and image time derivative $I_{t}$ is called the \emph{optical flow constraint. }Geometrically, this constraint specifies that at every point $\mathbf{x}_{0}$, the tip of the velocity vector $\vec{v}$ must lie on a certain line (in 2D), plane (in 3D) or hyper-plane (in ND) that is orthogonal to the image gradient at $\mathbf{x}_{0}$, as illustrated in Fig.~\ref{fig:vnr-oflow-dotproduct}. Importantly, the restriction of $\vec{v}$ onto a certain line/plane is not enough to determine $\vec{v}$ uniquely (except if $n=1$). At each point $(\mathbf{x}_{0},t_{0})$ the velocity vector $\vec{v}(\mathbf{x}_{0},t_{0})$ may take as many different values as there are different points in $\mathbb{R}^{n-1}$. Additional assumptions are required in order to uniquely determine $\vec{v}(\mathbf{x},t)$.
+
+\begin{figure}
+\centering{}\includegraphics[width=0.7\columnwidth]{figs/oflow_dotproduct}\caption{The intensity preservation constraint implies that the velocity vector $v$ is constrained to lie on a line (plane in 3D), but does not uniquely determine it. \label{fig:vnr-oflow-dotproduct}}
+\end{figure}
+
+
+\subsubsection{Smoothness Assumption and Formulation As Energy Minimization}
+
+Given that the intensity preservation assumption is not enough to determine $\vec{v}(\mathbf{x},t)$, Horn and Schunck \cite{horn81} proposed an additional assumption: that the velocity field $\vec{v}(\mathbf{x},t)$ is smooth across the image domain. Rather than formulating this assumption as a hard constraint, they reformulate the optical flow problem as an energy minimization problem in which violations of the optical flow assumption and smoothness assumption are both penalized.
+
+Going forward, let us focus on a particular moment in time, $t_{0}$ and let $\vec{v}(\mathbf{x})=\vec{v}(\mathbf{x},t_{0})$. Horn and Schunck's \cite{horn81} optical flow minimization is formulated as 
+\begin{equation}
+\vec{v}^{*}=\argmin\limits _{\hat{v}\in{\cal V}^{n}}E[\vec{v}]\,,\quad\text{where}\quad E[\vec{v}]=\int_{\Omega}\left(\vec{v}^{T}I_{\mathbf{x}}+I_{t}\right)^{2}+\lambda^{2}\sum_{i=1}^{n}\sum_{j=1}^{n}\left(\frac{\partial v^{i}}{\partial x_{j}}\right)^{2}\,\mathrm{d}\mathbf{x}.\label{eq:horn_energy}
+\end{equation}
+The left part of the integrand drives $\vec{v}$ to satisfy the intensity preservation assumption (i.e., the more the assumption is violated, the greater the value of the energy $E$ becomes). The right hand of the integrand drives $\vec{v}$ to be smooth, since discontinuities in $\vec{v}$ are associated with large values of the partial derivatives $\frac{\partial v_{i}}{\partial x_{j}}$. The positive scalar $\lambda$ is a coefficient of the method, and is used to balance between the two terms; larger values of $\lambda$ result in smoother solutions. 
+
+The energy functional (\ref{eq:horn_energy}) is minimized using variational techniques (\textbf{Section XXX}). The Euler-Lagrange equation for $E$ is 
+\[
+{\cal L}[\vec{v}]=\left(\vec{v}^{T}I_{\mathbf{x}}+I_{t}\right)I_{\mathbf{x}}-\lambda^{2}\triangle\vec{v}=\mathbf{0}\,,
+\]
+where $\triangle$ is the Laplacian operator. Like in most variational problems involving images, we solve the problem (\ref{eq:energy}) iteratively by taking small steps in the direction of $-{\cal L}(\vec{v})$.
+
+\begin{figure}
+\centering{}\includegraphics[width=1\columnwidth]{figs/oflow_result}\caption{Horn and Schunck optical flow method applied to a pair of images. The red arrows in the last panel show the estimated velocity field. \label{fig:vnr-oflow-result}}
+\end{figure}
+
+
+\subsubsection{Basic Implementation}
+
+The discretization and implementation of the optical flow algorithm is relatively easy. First, we must discretize over time. Instead of a continuous image $I(\mathbf{x},t)$, we consider a pair of $n$-dimensional images $J_{0}=I(\mathbf{x},t_{0})$ and $J_{1}=I(\mathbf{x},t_{0}+\delta t)$. The first-order approximation of the time derivative of $I(\mathbf{x},t)$ is
+\[
+I_{t}\simeq\frac{J_{1}-J_{0}}{\delta t}\,,
+\]
+and the spatial gradient of $I(\mathbf{x},t)$ at time $t_{0}$ is simply given by $I_{\mathbf{x}}=\nabla J_{0}$. Hence, 
+\[
+{\cal L}[\vec{v}]\simeq\left(\vec{v}^{T}\nabla J_{0}+\frac{J_{1}-J_{0}}{\delta t}\right)\nabla J_{0}-\lambda^{2}\triangle\vec{v}\,.
+\]
+Calculating this quantity involves approximation of the second derivatives of $\vec{v}$ using finite differences (\textbf{Section XXX}). Code listing XXX gives an example implementation of optical flow for two-dimensional images, and Fig.~\ref{fig:vnr-oflow-result} gives examples of velocity estimation from a pair of cardiac cine MRI frames. Note how the velocity field seems to capture the compression of the left ventricle and even some of the heart's twisting motion. 
+
+\subsubsection{Limitations of Optical Flow}
+
+A major limitation of optical flow is that the optical flow constraint loses its influence over homogeneous regions in the image. When a large region $R\subset\Omega$ of the image has nearly constant intensity, both the image gradient $I_{\mathbf{x}}$ and the image time derivative $I_{t}$ vanish on the interior of $R$. As the result, for any choice of $\vec{v}$ over the interior of $R$, the first term in (\ref{eq:horn_energy}), $\left(\vec{v}^{T}I_{\mathbf{x}}+I_{t}\right)^{2}$ will be nearly zero, and hence, the minimization of $E$ is almost exclusively driven by the regularization term over the interior of $R$. This results in surprising, and almost certainly wrong, estimates of velocity over homogeneous regions, with greater velocity at the boundary of the constant intensity regions than on the interior. This is demonstrated in Fig.~XXX, where several homogeneous objects are displaced rigidly in the image plane. The recovered velocity field is not at all consistent with rigid motion. 
+
+\subsection{Non-Parametric DIR using Iterative Optical Flow}
+
+\subsubsection{Conceptual DIR Algorithm based on Optical Flow}
+
+While optical flow can be useful in medical imaging applications for describing the dynamics of moving organs, it is not considered a DIR technique per se. Optical flow only computes an infinitesimal velocity between two timeframes in a video sequence, whereas DIR seeks a deformation of the domain $\Omega$ that would match up corresponding anatomical locations between two images. These corresponding locations may be quite far apart from each other, requiring a potentially ``large'' deformation to match them.
+
+However, it turns out that optical flow can be used as a building block for an effective non-parametric DIR algorithm. Consider the following iterative algorithm:
+
+\begin{algorithm}[H]
+\begin{enumerate}
+\item Let $I$ be the fixed image and $J$ the moving image. Let $J^{0}=J$.
+\item Iterate for $i=0,1,\ldots$ :
+\begin{enumerate}
+\item Compute optical flow $\vec{v}^{i}$ between images $I$ and $J^{i}$
+\item Let $J^{i+1}(\mathbf{x})=J^{i}(\mathbf{x}+\epsilon\vec{v}^{i})$ where $\epsilon$ is a (small) constant
+\item Terminate if the difference between $J^{i+1}$ and $J^{i}$ is below threshold
+\end{enumerate}
+\end{enumerate}
+\caption{A skeleton of a DIR algorithm based on Optical Flow.}
+
+\end{algorithm}
+
+The basic idea of this algorithm is as follows. At every iteration, the velocity field $\vec{v}^{i}$ obtained by performing optical flow between images $I$ and $J^{i}$ can be interpreted as the direction in which objects in $I$ would move if $I$ and $J^{i}$ were frames from a video. Even if $I$ and $J^{i}$ are not frames from a video but have similar content (e.g. both are images of brains), the vectors $\vec{v}^{i}$ may be expected to point from locations in $I$ toward similarly-appearing locations in $J^{i}$. This is, of course, a strong assumption. If this assumption is true, then moving the locations in $I$ a small amount along the vectors $\vec{v}^{i}$ would place them closer to their corresponding anatomical counterparts in $J^{i}$. Conversely, deforming the image $J^{i}$ by the ``small'' transformation $J^{i+1}(\mathbf{x})=J^{i}(\mathbf{x}+\epsilon\vec{v}^{i})$ would result in the new image $J^{i+1}$ being better anatomically matched up with $I$ than $J^{i}$. Repeating this process iteratively until convergence would result in an image $J^{M}$ that is most similar anatomically to $I$. 
+
+In practice it turns out that the strong assumption above is actually not unreasonable, and the general algorithm outlined above works quite well for DIR. However, the algorithm above is just a conceptual sketch, not a practical DIR algorithm. One crucial limitation is that at each iteration the image $J^{i}$ is interpolated, which over just a few iterations would completely degrade the image due to aliasing (Chapter XXX). Also, the algorithm does not actually yield any spatial transformation, just a deformed image $J^{M}$. These two limitations can be easily addressed by a small modification to the algorithm:
+\begin{algorithm}[H]
+\begin{enumerate}
+\item Let $I$ be the fixed image and $J$ the moving image. Let $J^{0}=J$ and $\phi^{0}=\mathrm{Id}$.
+\item Iterate for $i=0,\ldots,M$:
+\begin{enumerate}
+\item Compute optical flow $\vec{v}^{i}$ between images $I$ and $J^{i}$
+\item Let $\psi^{i}=\mathrm{Id}+\epsilon\vec{v}^{i}$, i.e., $\psi^{i}(\mathbf{x})=\mathbf{x+\epsilon}\vec{v}^{i}(\mathbf{x})$
+\item Let $\phi^{i+1}=$$\phi^{i}\circ\psi^{i}$, i.e., $\phi^{i+1}(\mathbf{x})=\phi^{i}(\mathbf{x+\epsilon}\vec{v}^{i}(\mathbf{x}))$
+\item Let $J^{i+1}=J^{0}\circ\phi^{i+1}$
+\item Terminate if the difference between $J^{i+1}$ and $J^{i}$ is below threshold
+\end{enumerate}
+\end{enumerate}
+\caption{Conceptual DIR algorithm based on Optical Flow.}
+\end{algorithm}
+
+Note that the two algorithms are identical in terms of the outputs $J^{i}$ when the input images are continuous functions. However, when it comes to practical implementation, the difference is significant! The first algorithm interpolates the moving image repeatedly, whereas in the second algorithm, the moving image is only interpolated once, and the spatial transformations $\phi^{i}$ are composed repeatedly, which involves interpolation. It turns out that the latter is less problematic, particularly because in practice additional smoothing will be applied to these spatial transformations to limit aliasing.
+
+\subsubsection{The Demons Algorithm}
+
+The idea of using optical flow as a step in a DIR algorithm was pioneered by J.P. Thirion \cite{thirion96} in an approach he called ``Demons'', in reference to a famous thought experiment in Maxwell's theory of thermodynamics. One obvious limitation that Thirion's approach overcame is the computational inefficiency of the algorithm above:\emph{ at each iteration it requires us to solve the optical flow problem, which itself requires iterative optimization!} This double iteration would be impractical for real-world registration problems. 
+
+\begin{figure}
+\centering{}\includegraphics[width=1\columnwidth]{figs/demons_contours}\caption{Additional optical constraint proposed in the Demons method \cite{thirion96}. The optical flow condition dictates that points on a given iso-intensity contour in $I$ at time $t$ (bold curve, i.e., a set of all points that have intensity $\alpha$ at time $t$) has to map to some point on the corresponding contour in the image at time $t+\delta t$. The Demons method introduces an additional constraint, that points at time $t$ should map onto the \emph{closest point} on the corresponding contour at time $t+\delta t$. \label{fig:vnr-demons-contours}}
+\end{figure}
+
+Thirion proposed to estimate optical flow in a simpler and more efficient way than in the Horn an Schunck method \cite{horn81}. The optical flow intensity preservation condition (\ref{eq:optflowcon}) can be interpreted as saying that points on any iso-intensity contour of the image at time $t$ (i.e., points that satisfy $I(\mathbf{x},t)=\alpha$ for some scalar $\alpha$) should map to points somewhere on the corresponding contour in the image at time $t+\delta t$ (Fig.~\ref{fig:vnr-demons-contours}a). Thirion proposed to strengthen this constraint, by requiring these points on the contour at time $t$ to map to the \emph{closest point }on the contour at time $t+\delta t$ (Fig.~\ref{fig:vnr-demons-contours}b). This is equivalent to requiring $\vec{v}$ to be perpendicular to the contour, or parallel to $I_{\mathbf{x}}$, since the gradient of a function is orthogonal to its iso-intensity contours. Introducing the additional constraint $\vec{v}\parallel I_{\mathbf{x}}$ makes it possible to solve directly for $\vec{v}$:
+
+\[
+y\begin{cases}
+\vec{v}^{T}I_{\mathbf{x}}=-I_{t}\\
+\vec{v}\parallel I_{\mathbf{x}}
+\end{cases}\quad\Longrightarrow\quad\vec{v}=\frac{-I_{t}}{|I_{\mathbf{x}}|^{2}}I_{\mathbf{x}}\,.
+\]
+\begin{figure}
+\centering{}\includegraphics[width=1\columnwidth]{figs/demons_velocity}\caption{Illustration of Demons velocity computation \cite{thirion96}, contrasted with Horn an Schunck \cite{horn81} optical flow. The velocity field is computed between cine MRI frames from Fig.~\ref{fig:vnr-oflow-result}. The Demons velocity field is shown before and after smoothing in (\ref{eq:demons}). \label{fig:vnr-demons-velocity}}
+\end{figure}
+
+However, the expression on the right is asymptotic at locations with near constant intensity, where $|I_{\mathbf{x}}|\simeq0$. It also results in very noisy velocity fields. To overcome this, Thirion proposed modifying the expression for $\vec{v}$ as follows:
+\begin{equation}
+\vec{v}=G_{\sigma}*\begin{cases}
+\frac{-I_{t}}{|I_{\mathbf{x}}|^{2}+|I_{t}|^{2}}I_{\mathbf{x}} & {\textstyle \mathrm{if}\,\,|I_{\mathbf{x}}|^{2}+|I_{t}|^{2}>\epsilon}\\
+\mathbf{0} & \mathrm{otherwise}
+\end{cases}\,.\label{eq:demons}
+\end{equation}
+This formulation reduces the number of points where $\vec{v}$ is unstable, and results in zero velocity over regions of constant intensity. The convolution with the Gaussian kernel $G_{\sigma}$ regularizes the velocity field, somewhat similar to the Horn and Schunk approach, but without optimization (Fig.~\ref{fig:vnr-demons-velocity}). This results in a very fast computation of optical flow. The following algorithm is approximately equivalent to the original Demons formulation:
+
+\begin{algorithm}[H]
+\begin{enumerate}
+\item Let $I$ be the fixed image and $J$ the moving image. Let $\phi^{0}=\mathrm{Id}$.
+\item Iterate for $i=0,\ldots,M$:
+\begin{enumerate}
+\item Let $J^{i}=J\circ\phi^{i}$
+\item Compute optical flow $\vec{v}^{i}$ between images $I$ and $J^{i}$ as
+\[
+\vec{v}^{i}=G_{\sigma}*\begin{cases}
+-\frac{J^{i}-I}{|\nabla J^{i}|^{2}+|J^{i}-I|^{2}}\nabla J^{i} & {\textstyle \mathrm{if}\,|\nabla J^{i}|^{2}+|J^{i}-I|^{2}>\epsilon}\\
+\mathbf{0} & \mathrm{otherwise}
+\end{cases}\,.
+\]
+\item Let $\psi^{i}=\mathrm{Id}+\epsilon\vec{v}^{i}$, i.e., $\psi^{i}(\mathbf{x})=\mathbf{x+\epsilon}\vec{v}^{i}(\mathbf{x})$
+\item Let $\phi^{i+1}=$$G_{\tau}*(\phi^{i}\circ\psi^{i})$
+\item Terminate if $|J\circ\phi^{i+1}-J^{i}|$ is below threshold
+\end{enumerate}
+\end{enumerate}
+\caption{The Compositional Demons Algorithm \cite{thirion96}.\label{alg:vnr-demons}}
+\end{algorithm}
+
+There are a several observations to be made about the algorithm:
+\begin{itemize}
+\item The expression in 2(b) is derived from (\ref{eq:demons}) by approximating $I_{t}$ with $J^{i}-I$ and approximating $I_{\mathbf{x}}$ with $\nabla J^{i}$. It is also possible to approximate $I_{\mathbf{x}}$ with $\nabla I$ or with $\frac{1}{2}(\nabla J^{i}+\nabla I)$. How these different approximations affect the behavior of Demons is explored in \cite{vercauteren09}.
+\item In practice, the scaling factor $\epsilon$ in step 2(c) can be chosen in different ways. For example, it can be adapted at each iteration so that $\sup_{\mathbf{x}\in\Omega}|\vec{v}^{i}|\le\epsilon'$, where $\epsilon'$ is fixed across iterations (typically on the order of $1/4$ to $1/2$ of the voxel dimension).
+\item Observe that convolution with a Gaussian filter is performed in two places: in step 2(b), when regularizing the optical flow, and in step 2(d), when combining the accumulated transformation $\phi^{i}$ with the small transformation $\psi^{i}$. Vercauteren et al., \cite{vercauteren09} describe these as ``fluid-like'' and ``diffusion-like'' regularization. In practice, both kinds of regularization are needed to obtain a good quality registration. 
+\item Unlike many algorithms in computer vision and medical image analysis, the Demons algorithm is not formulated in a variational fashion, i.e., in terms of some energy functional $E[\phi]$ that is minimized. However, Vercauteren et al., \cite{vercauteren09} show that it is possible to interpret Demons as energy minimization by introducing an additional concept of a correspondence map.\footnote{The correspondence map $c:\Omega\rightarrow\Omega$ can be interpreted as a more ``raw'', unregularized mapping of pixels in the fixed image $I$ to the pixels in the moving image $J$. Vercauteren et al. \cite{vercauteren09} define an energy functional that involves both the unknown transformation and the unknown correspondence map:
+\[
+E[c,\phi]=\lambda_{1}\|I-J\circ c\|^{2}+\lambda_{2}\|\phi-c\|+\lambda_{3}\|\nabla\phi\|^{2}\,,
+\]
+where $\lambda_{1},\lambda_{2},\lambda_{3}$ are coefficients corresponding to the three terms in the energy: the intensity similarity (how well the correspondence map matches pixels in the two images); the fidelity of the transformation (how well the transformation $\phi$ agrees with the correspondence map $c$); and the regularization term (how noisy is the transformation $\phi$). The authors then show that the Demons iterative algorithm correponds to alternatively minimizing $E[c,\phi]$ with respect to $c$ and $\phi$.}
+\end{itemize}
+The Demons algorithm is a very fast non-parametric registration algorithm. It only involves very basic image processing operations such as composition of transformation fields (interpolation), computation of image gradients, and convolution with a Gaussian kernel. It is also highly parallelizable. A MATLAB implementation of the Demons algorithm is provided in Listing XXX.
+\begin{description}
+\item [{}]~
+\end{description}
+
+\subsubsection{Log-Domain Diffeomorphic Demons Algorithm}
+
+The transformations produced by the compositional Demons algorithm are not guaranteed to be diffeomorphic. In practice, they often are because at each iteration the current transformation $\phi^{i}$ is composed with a small transformation $\psi^{i}$. However, the convolution with the Gaussian kernel $G_{\tau}$ in step 2(d) may break the diffeomorphic property, and also the numerical implementation may eventually lead to solutions that are in fact not diffeomorphic. Another limitation of compositional Demons is that it only provides the forward transformation $\phi^{i}$ that maps points in the fixed image to corresponding points in the moving image, but the inverse transformation is not generated. Although it is possible to estimate the inverse of a diffeomorphic transformation \emph{post hoc} doing so without significant numerical error is nontrivial and computationally expensive {[}XXX{]}. 
+
+Vercauteren et al. (2008) \cite{vercauteren08} proposed a modification to the compositional Demons algorithm that guarantees diffeomorphic solutions and outputs both forward and inverse transformations. This approach is called \emph{log-domain Demons.} It takes advantage of the fact that diffeomorphic transformations can be generated from smooth and bounded vector-valued functions using the using the exponential map (see Section~\ref{subsec:vnr-sec-math-diff}). The main modification from compositional Demons is that instead of directly updating the spatial transformation $\phi^{i}$ at each iteration of the algorithm, Vercauteren's method performs updates in the ``logarithmic domain'', i.e., it updates the vector-valued function $\mathbf{u}^{i}$, such that the desired spatial transformation is given by 
+\[
+\phi^{i}=\exp(\mathbf{u}^{i})\,,
+\]
+which in turn is approximated using the scaling and squaring algorithm (see Section~\ref{subsec:vnr-sec-math-diff}).
+
+The crux of the algorithm is to figure out how to perform the update $\mathbf{u}^{i}\rightarrow\mathbf{u}^{i+1}$ in the logarithmic domain given the optical flow velocity field $\epsilon\vec{v}^{i}$, such that $\exp(\mathbf{u}^{i+1})=\exp(\mathbf{u}^{i})\circ(\text{Id}+\epsilon\vec{v})$. In principle, doing so requires the inverse of the exponential map (i.e., the logarithm map), which is not well-defined for the infinite-dimensional group of diffeomorphisms, and also very expensive to compute. However, Vercauteren et al. show that the following approximation, based on the Baker-Campbell-Hausdorff formula from the theory of Lie groups \cite{rossmann06}, is sufficiently accurate in practice:
+\[
+\mathbf{u}^{i+1}\simeq\mathbf{u}^{i}+\epsilon\,\vec{v}^{i}+\frac{\epsilon}{2}[\mathbf{u}^{i},\vec{v}^{i}]\,,
+\]
+where the expression $[\mathbf{u},\mathbf{v}]$ is called the \emph{Lie bracket}, and has the form:
+\[
+[\mathbf{u},\mathbf{v}]=(D\mathbf{u})\mathbf{v}-(D\mathbf{v})\mathbf{u}\,,
+\]
+and $D\mathbf{u}$ denotes the Jacobian matrix of $\mathbf{u}$. This update takes place directly in the logarithmic domain, and is relatively inexpensive computationally, compared to the update in steps 2(c,d) in the compositive Demons algorithm. Another change in the Vercauteren's algorithm is that regularization with the diffusion kernel $G_{\tau}$ is performed directly in the logarithmic domain. The final algorithm is as follows:
+
+\begin{algorithm}[H]
+\begin{enumerate}
+\item Let $I$ be the fixed image and $J$ the moving image. Let $\mathbf{u}^{0}(\mathbf{x})=\mathbf{0}$.
+\item Iterate for $i=0,\ldots,M$:
+\begin{enumerate}
+\item Let $J^{i}=J\circ\phi^{i}$
+\item Compute optical flow $\vec{v}^{i}$ between images $I$ and $J^{i}$ as in Alg.~\ref{alg:vnr-demons}, Step 2(b).
+\item Let $\mathbf{u}^{i+1}=G_{\tau}*\left(\mathbf{u}^{i}+\epsilon\,\vec{v}^{i}+\frac{\epsilon}{2}[\mathbf{u}^{i},\vec{v}^{i}]\right)$
+\item Let $\phi^{i+1}=$ $\exp(\mathbf{u}^{i+1})$ and $(\phi^{i+1})^{-1}=\exp(-\mathbf{u}^{i+1})$.
+\item Terminate if $|J\circ\phi^{i+1}-J^{i}|$ is below threshold.
+\end{enumerate}
+\end{enumerate}
+\caption{The Log-domain Demons Algorithm \cite{vercauteren08,vercauteren09}.}
+\end{algorithm}
+
+The log-domain Demons algorithm is computationally efficient. The added computational cost compared to compositional Demons is the computation of the Lie bracket (requires computing first derivatives of $\mathbf{u}^{i}$ and $\vec{v}^{i}$) and the handful of additional compositions involved in the scaling and squaring algorithm. Because it is fast, easy to implement, guarantees diffeomorphic transformations, and is very effective in practice, the log-domain Demons algorithm has become one of the most widely used non-parametric registration approaches, and variations of this method are implemented in various registration software packages {[}xxx{]}. A number of extensions and improvements to the baseline log-Demons algorithm have been made, including:
+\begin{itemize}
+\item The algorithm can be extended to work with other intensity similarity metrics, such as patch cross-correlation (Sec. XXX) and mutual information (Sec. XXX). For an arbitrary intensity similarity metric $\mu[I,J]$, the optical flow computation in Step 2(b) is replaced with the vector field
+\[
+\vec{v}^{i}=-G_{\sigma}*\nabla_{J}\mu(I,J_{i})\,,
+\]
+which like the optical flow field corresponds to a small transformation that would pull $J_{i}$ in the direction that lowers the metric value. In practice, Demons-like registration using the cross-correlation metric is particularly effective for many types of medical images.
+\item The algorithm can be made symmetric, such that the result of the registration with $I$ as the fixed image and $J$ is the moving image is the inverse of the result of the registration with $J$ as the fixed image and $I$ as the moving image. A symmetric extension of log Demons is described in the original paper \cite{vercauteren08} and requires only a minor modification to the algorithm, based on computing the optical flow in both directions (fixed to moving and moving to fixed), and a minor increase in computational cost.
+\item Mansi et al. (2011) \cite{mansi11} proposed a modification of log-domain Demons that constrains transformations to be incompressible ($|D\phi^{i}|=1)$ over regions of the fixed image. This constraint is useful when performing registration in anatomical structures with known biomechanical properties, such as deforming cardiac tissue. 
+\end{itemize}
+
+\section{Large Deformation Diffeomorphic Metric Mapping (LDDMM)\label{sec:vnr-lddmm}}
+
+\subsection{LDDMM Formulation}
+
+We now turn our attention to another highly influential approach to non-parametric registration with diffeomorphic constraints, called \emph{Large Deformation Diffeomorphic Metric Mapping (LDDMM)} \cite{beg05,miller06}. Unlike Demons and related registration techniques, LDDMM is formulated explicitly as a problem of minimizing an energy functional over the space of diffeomorphic transformations, $\text{Diff}$. The energy functional is a weighted sum of the similarity metric between the fixed and moving images (with weight $\frac{1}{\sigma^{2}}$, following the notation in \cite{beg05}) and a regularization term on the spatial transformation:
+
+\begin{equation}
+\phi^{*}=\argmin\limits _{\phi\in\text{Diff}}E[\phi]\,,\quad\text{where\ensuremath{\quad}\,E[\ensuremath{\phi]}}=\frac{1}{\sigma^{2}}\,\mu(\phi;I,J)+\text{Reg}(\phi)\,.\label{eq:vnr-lddmm-bare}
+\end{equation}
+This kind of \emph{variational} formulation of the registration problem has advantages over the \emph{``greedy''} formulation in Demons, which does not directly associate solutions with an energy value. For example, it provides a principled way to compare the fidelity of different solutions $\phi_{1},\phi_{2},\ldots$, and as we will see below, it actually provides a sensible way to extend the familiar concepts of ``distance'' and ``average'' to the highly non-linear space of medical images.
+
+The problem formulated in (\ref{eq:vnr-lddmm-bare}) requires us to search for solutions in the space $\text{Diff}$. Because of the non-linear nature of $\text{Diff}$, doing so is very difficult when representing the transformations $\phi$ directly, i.e., as vector fields. For example, if $\phi_{1}$ and $\phi_{2}$ are in $\text{Diff}$, there is no guarantee that transformations in the form $w_{1}\phi_{1}+w_{2}\phi_{2}$ (where $w_{1}$ and $w_{2}$ are scalars) will be in $\text{Diff}$. Constraining solutions $\phi$ to stay in $\text{Diff}$ during the minimization of $E[\phi]$ in (\ref{eq:vnr-lddmm-bare}) would be difficult and computationally expensive.
+
+However, as we have seen in Section~\ref{subsec:vnr-diff-flowode}, diffeomorphic transformations can be generated from less constrained representations (i.e., differentiable and bounded vector fields) in various ways. LDDMM leverages the fact that a family of diffeomorphic transformations $\phi(\mathbf{x},t)$ parameterized by time $t\in[0,1]$ can be generated from a time-varying differentiable and bounded \emph{velocity field }$\mathbf{v}(\mathbf{x},t):\Omega\times[0,1]\rightarrow\mathbb{R}^{n}$ using the flow ODE (\ref{eq:vnr-diff-flowode}). For a given point $\mathbf{x}$ in the space of the fixed image $I$, the function $\phi(\mathbf{x},t)$ describes a non-linear trajectory of that point as it moves tangentially to $\mathbf{v}(\mathbf{x},t)$, like a dust particle in the wind. Let the diffeomorphic transformation $\phi_{1}(\mathbf{x})=\phi(\mathbf{x},1)$ denote the final position of \textbf{$\mathbf{x}$}. LDDMM reformulates the registration problem (\ref{eq:vnr-lddmm-bare}) as the problem of finding a velocity field $\mathbf{v}$ for which the final transformation $\phi_{1}(\mathbf{x})$ best matches corresponding points between fixed and moving images, while also subject to a regularization term:
+
+\begin{multline}
+\mathbf{v}^{*}=\argmin\limits _{\mathbf{v}\in{\cal V}}E[\mathbf{v}]\,,\quad\text{where\ensuremath{\quad}\,E[\ensuremath{\mathbf{v}]}}=\frac{1}{\sigma^{2}}\,\mu(\phi_{1};I,J)+\text{Reg}(\mathbf{v})\,,\\
+\text{and \ensuremath{\frac{\text{d}\phi}{\text{d}t}}(\ensuremath{\mathbf{x}},t)=\ensuremath{\mathbf{v}}(\ensuremath{\phi}(\ensuremath{\mathbf{x}},t),t)\,,\quad\text{subj. to}\,\,\ensuremath{\phi}(\ensuremath{\mathbf{x}},0)=\ensuremath{\mathbf{x}\,}}\label{eq:vnr-lddmm-velocity}
+\end{multline}
+Unlike (\ref{eq:vnr-lddmm-bare}), the search space ${\cal V}$ for this energy minimization problem consists of smooth and bounded vector-valued velocity fields, and is much simpler in structure than $\text{Diff}$. For example, given two candidate solutions $\mathbf{v}_{1},\mathbf{v}_{2}\in{\cal V}$, their weighted sums $w_{1}\mathbf{v}_{1}+w_{2}\mathbf{v}_{2}$ are also members of the search space ${\cal V}$. 
+
+\paragraph{Regularization Term }
+
+Let us now consider the regularization term in (\ref{eq:vnr-lddmm-velocity}). We can learn a lot about the properties of the final transformation $\phi_{1}(\mathbf{x})$ by examining the properties of $\mathbf{v}(\mathbf{x},t)$. Following our wind/dust analogy, the faster the wind is, the farther the particles are likely to travel; and the smoother the field wind is, the more simple the trajectories of the particles are likely to be. This suggests that it should be possible to measure the regularity of the trajectories $\phi(\mathbf{x},t)$ and of the final transformation $\phi_{1}(\mathbf{x})$ using quantities derived directly from the velocity field $\mathbf{v}$.
+
+Let us consider for a moment the squared Euclidean or $L^{2}$ norm of $\mathbf{v}$ as a potential regularization term. It is defined as follows:
+\[
+\|\mathbf{v}\|_{L^{2}}^{2}=\intop_{0}^{1}\intop_{\Omega}\left|\mathbf{v}(\mathbf{x},t)\right|^{2}\,\text{d}\mathbf{x}\,\text{d}t\,=\intop_{0}^{1}\intop_{\Omega}<\mathbf{v}(\mathbf{x},t),\mathbf{v}(\mathbf{x},t)>\,\text{d}\mathbf{x}\,\text{d}t\,.
+\]
+This norm integrates the magnitude of the velocity across space and time dimensions. The faster the ``wind'' in our analogy, the greater $\|\mathbf{v}\|_{L^{2}}^{2}$ will be. Consequently, the particles described by $\phi(\mathbf{x},t)$ will travel farther. If we use $\text{Reg}(\mathbf{v})=\|\mathbf{v}\|_{L^{2}}^{2}$ as the regularization term in (\ref{eq:vnr-lddmm-velocity}), then we would favor solutions that have shorter trajectories, which is reasonable. However, $\|\mathbf{v}\|_{L^{2}}^{2}$ does nothing to penalize the noisiness of the velocity field, so we are likely to get noisy solutions. 
+
+In LDDMM \cite{beg05}, the authors associate the space of time-varying velocity fields ${\cal V}$ with a different non-Euclidean norm called the \emph{Sobolev norm}. The Sobolev norm of a vector field measures both its magnitude and its regularity, and is defined as 
+\[
+\|\mathbf{v}\|_{{\cal V}}^{2}=\|\mathbf{{\cal L}v}\|_{L^{2}}^{2}=\intop_{0}^{1}\intop_{\Omega}\left|{\cal L}\mathbf{v}(\mathbf{x},t)\right|^{2}\,\text{d}\mathbf{x}\,\text{d}t\,,
+\]
+where ${\cal L}$ is a differential operator. In LDDMM, this operator is given the following form: 
+\[
+{\cal L}\mathbf{v}=\gamma\mathbf{v}-\alpha\Delta\mathbf{v}\,,
+\]
+where $\Delta$ is the Laplacian operator, applied separately to each component of $\mathbf{v}$.\footnote{Specifically, $\Delta\mathbf{v}=\left[\begin{array}{c}
+\frac{\partial^{2}v^{1}}{\partial x_{1}^{2}}+\ldots+\frac{\partial^{2}v^{1}}{\partial x_{n}^{2}}\\
+\vdots\\
+\frac{\partial^{2}v^{n}}{\partial x_{1}^{2}}+\ldots+\frac{\partial^{2}v^{n}}{\partial x_{n}^{2}}
+\end{array}\right]\,.$}; $\gamma>0$ and $\alpha>0$ are scalar weights that control the extent to which the magnitude and regularity components contribute to $\|\mathbf{v}\|_{{\cal V}}^{2}$ . As is common in the LDDMM literature, we will use the term \emph{kinetic energy} to describe the combined magnitude and regularity of the time-varying velocity field $\mathbf{v}$ captured by the Sobolev norm $\|\mathbf{v}\|_{{\cal V}}^{2}$. In particular, the term ``kinetic energy of a diffeomorphic flow $\phi_{t}$'' refers to the Sobolev norm of the velocity field $\mathbf{v}$ from which $\phi_{t}$ is generated by the flow ODE.
+
+Figure XXX shows examples of diffeomorphic transformations obtained by solving the flow ODE for different synthetically generated velocity fields $\mathbf{v}$, with corresponding values of the kinetic energy. The figure illustrates that the regularization $\text{Reg}(\mathbf{v})=\|\mathbf{v}\|_{{\cal V}}^{2}$ favors transformations that are not too large and not too irregular.
+
+\paragraph{Similarity Metric.}
+
+In the original formulation of LDDMM \cite{beg05}, the authors used the sum of squared differences (SSD) similarity metric, due to its mathematical simplicity. Other metrics can also be used in conjunction with LDDMM, but SSD is best suited for understanding the approach. Elsewhere in this chapter, we computed the similarity metric in the space of the fixed image $I$, with the moving image $J$ warped into the space of $I$: 
+\[
+\mu(\phi;I,J)=\intop_{\Omega}\left|I-J\circ\phi\right|^{2}\,\text{d}\mathbf{x}\,.
+\]
+In the original LDDMM paper \cite{beg05}, the authors chose to compute the similarity metric in the space of the moving image instead, with the fixed image warped back into the space of the moving image using the inverse of the final transformation $\phi_{1}$:
+\[
+\mu(\phi_{1};I,J)=\intop_{\Omega}\left|I\circ\phi_{1}^{-1}-J\right|^{2}\,\text{d}\mathbf{x}\,.
+\]
+Since it does not really matter whether the similarity is computed in the space of the fixed or moving image, we will follow the convention of the original LDDMM paper here. The complete formulation of the LDDMM registration algorithm is the following energy minimization problem:
+\begin{multline}
+\mathbf{v}^{*}=\argmin\limits _{\mathbf{v}\in{\cal V}}E[\mathbf{v};I,J]\,,\quad\text{where}\\
+\text{\ensuremath{E[\mathbf{v};I,J]}}=\|\mathbf{v}\|_{{\cal V}}^{2}+\frac{1}{\sigma^{2}}\intop_{\Omega}\left|I\circ\phi_{1}^{-1}-J\right|^{2}\,\text{d}\mathbf{x}\,,\\
+\text{and \ensuremath{\frac{\text{d}\phi}{\text{d}t}}(\ensuremath{\mathbf{x}},t)=\ensuremath{\mathbf{v}}(\ensuremath{\phi}(\ensuremath{\mathbf{x}},t),t)\,,\quad\text{subj. to}\,\,\ensuremath{\phi}(\ensuremath{\mathbf{x}},0)=\ensuremath{\mathbf{x}\,}.}\label{eq:vnr-lddmm-complete}
+\end{multline}
+
+
+\subsection{Approaches to Solving the LDDMM Problem}
+
+\subsubsection{Variational Approach }
+
+The minimization of the energy functional $\text{\ensuremath{E[\mathbf{v};I,J]}}$ in (\ref{eq:vnr-lddmm-complete}) can be solved using standard variational techniques, i.e., by writing down the the Euler-Lagrange equation for $E$. The derivation is quite involved (largely due to the presence of the ODE in the formulation) and we direct interested readers to the original paper \cite{beg05}. For a given value of $t\in[0,1]$, the Euler-Lagrange equation is:
+\begin{equation}
+2\mathbf{v}_{t}-{\cal K}\left(\frac{2}{\sigma^{2}}\left|D\phi_{t,1}\right|\,\nabla I_{t}(I_{t}-J_{t})\right)=0\,,\label{eq:vnr-lddmm-el}
+\end{equation}
+where
+\begin{center}
+\begin{tabular}{|>{\raggedleft}m{0.25\columnwidth}|>{\raggedright}p{0.65\textwidth}|}
+\hline 
+$\mathbf{v}_{t}(\mathbf{x})=\mathbf{v}(\mathbf{x},t)$ & is the velocity field at a fixed time $t$\tabularnewline
+\hline 
+$\phi_{t}(\mathbf{x})=\phi(\mathbf{x},t)$ & is the spatial transformation at a fixed time $t$\tabularnewline
+\hline 
+$\phi_{t,1}=\phi_{1}\circ\phi_{t}^{-1}$ & is the transformation between points at timepoint $t$ and the corresponding points at timepoint $1$ \tabularnewline
+\hline 
+$\phi_{t,0}=\phi_{0}\circ\phi_{t}^{-1}=\phi_{t}^{-1}$ & is the transformation between points at timepoint $t$ and the corresponding points at timepoint $0$\tabularnewline
+\hline 
+$I_{t}=I\circ\phi_{t,0}$ & is the fixed image warped into the timepoint $t$\tabularnewline
+\hline 
+$J_{t}=J\circ\phi_{t,1}$ & is the moving image warped into the timepoint $t$\tabularnewline
+\hline 
+$\left|D\phi_{t,1}\right|$ & is the determinant of the Jacobian of $\phi_{t,1}$ \tabularnewline
+\hline 
+${\cal K}$ & is the operator satisfying the relation ${\cal K}({\cal L}^{\dagger}{\cal L})\mathbf{u}=\mathbf{u}$ for all vector fields $\mathbf{u}\in{\cal U}$, where $\dagger$ denotes the adjoint. ${\cal K}$ is the inverse of the operator ${\cal L}^{\dagger}{\cal L}$, and does not have a closed form. In practice it is computed by solving the partial differential equation ${\cal L}^{\dagger}{\cal L}\mathbf{w}=\mathbf{u}$ for $\mathbf{w}\in{\cal U}$.\tabularnewline
+\hline 
+\end{tabular}
+\par\end{center}
+
+Given the Euler-Lagrange equation, the optimization problem is discretized and solved sequentially as most other variational optimization problems in this book, i.e., by making small updates in the opposite direction of the left hand side of (\ref{eq:vnr-lddmm-el}). The following additional considerations are involved in implementing the LDDMM approach computationally:
+\begin{itemize}
+\item The time dimension is discretized into a fixed number of steps (e.g., $40$ or $100$). 
+\item During optimization, it is necessary to compute and maintain in memory the transformations $\phi_{t}(\mathbf{x})$ and $\phi_{t}(\mathbf{x})^{-1}$ for each discrete time step $t$. These transformations are computed using numerical schemes for approximating the flow ODE (\ref{eq:vnr-diff-flowode}). While Euler's method can be used for this, Beg et al. \cite{beg05} use a more accurate two-step semi-Lagrangian scheme \cite{staniforth91}.
+\item The partial differential equation corresponding to the application of the operator ${\cal K}$ in (\ref{eq:vnr-lddmm-el}) is solved numerically using Fourier transform. It is also possible to change the definition of ${\cal L}$ so that ${\cal K}$ corresponds to smoothing with a Gaussian kernel. This does not appear to substantially change the solutions in practice. 
+\item Beg et al. \cite{beg05} show that, theoretically, the minimizer of (\ref{eq:vnr-lddmm-complete}) has ``constant speed'' (i.e., $\intop_{\Omega}\left|{\cal L}\mathbf{v}_{t}\right|^{2}\,\text{d}\mathbf{x}=\text{const }$ as a function of time). In practice, the sequential scheme for minimizing (\ref{eq:vnr-lddmm-complete}) does not yield solutions with constant speed, and Beg et al. \cite{beg05} recommend reparameterizing the solution $\mathbf{v}(\mathbf{x},t)$ with respect to $t$ to maintain constant speed after every few update iterations.
+\end{itemize}
+Overall, the LDDMM approach yields itself well to computational implementation and is highly parallelizable. Several efficient GPU-based implementations have been developed {[}XXX{]}. However, it is quite memory intensive because of the need to maintain several data arrays of the size ${\cal O}(NT)$ where $N$ is the size of $I$ in voxels and $T$ is the number of time steps. 
+
+\subsubsection{Geodesic Shooting}
+
+It turns out that we can minimize the LDDMM energy $E[\mathbf{v};I,J]$ without having to optimize in the high-dimensional (space+time) space ${\cal V}$. It turns out that a velocity field $\mathbf{v}\in{\cal V}$ that minimizes $E[\mathbf{v};I,J]$ is entirely determined by the initial velocity $\mathbf{v}_{0}$. To understand this consider the following analogy:
+\begin{itemize}
+\item Suppose you want to walk between two villages A and B located in a mountainous terrain. A path that you would follow can be described by its coordinates $\mathbf{x}(t)$, with $\mathbf{x}(0)=A$ and $\mathbf{x}(1)=B$. It can also be described by the your velocity vector at every time, $\mathbf{v}(t)$, with the path itself given by the ODE 
+\[
+\mathbf{x}(0)=A\quad\text{and \ensuremath{\quad\dot{\mathbf{x}}(t)=\mathbf{v}(t)}}\,.
+\]
+The length of this path is given simply by 
+\[
+L[\mathbf{v}]=\int_{0}^{1}|\mathbf{v}(t)|\,\text{d}t\,.
+\]
+\item Now suppose you wanted to walk from A to B covering the shortest possible distance. This shortest path is called the \emph{minimizing geodesic. }On a plane it is a straight line, but on a curved manifold, it is a curve that locally ``looks like'' a straight line. We can write the problem of finding the minimizing geodesic in terms of $\mathbf{v}$ as follows:
+\[
+\mathbf{v}^{*}=\argmin\limits _{\mathbf{v}}L[v]\quad\text{subject to }\ \mathbf{x}(1)=B\,,
+\]
+or equivalently,
+\begin{equation}
+\mathbf{v}^{*}=\argmin\limits_{\mathbf{v}}L[v]+\frac{1}{\sigma^{2}}|\mathbf{x}(1)-B|^{2}\,.\label{eq:vnr-geodesic-minimization}
+\end{equation}
+This is analogous to the LDDMM energy minimization described above, and similarly requires us to search for a time-parameterized velocity function $\mathbf{v}(t)$. 
+\item Let us now elaborate on the notion that a geodesic ``looks like'' a straight line locally. Let $X$ be some point that the curve\textbf{ $\mathbf{x}(t)$} passes through, and let $T_{X}$ be the tangent plane to the Earth's surface at $X$. The curvature of the projection of curve \textbf{$\mathbf{x}(t)$ }onto $T_{X}$ at $X$ is called \emph{geodesic curvature. }A geodesic is a curve whose geodesic curvature is zero at every point. Mathematically, this property is expressed by the second-order ODE:
+\begin{equation}
+\frac{\text{d}^{2}x_{k}}{\text{d}t^{2}}+\sum_{i,j}\Gamma_{ij}^{k}\frac{\text{d}x_{i}}{\text{d}t}\frac{\text{d}x_{j}}{\text{d}t}=0\,,\quad\text{for \ \ensuremath{i,j,k\in\{1,2,3\}}},\label{eq:vnr-geodesic-ode}
+\end{equation}
+or equivalently
+\begin{equation}
+\frac{\text{d}v_{k}}{\text{d}t}+\sum_{i,j}\Gamma_{ij}^{k}v_{i}v_{j}=0\,,\quad\text{for \ \ensuremath{i,j,k\in\{1,2,3\}}},\label{eq:vnr-geodesic-ode-velocity}
+\end{equation}
+where $x_{k}$ and $v_{k}$ denote the components of \textbf{$\mathbf{x}$} and $\mathbf{v}$; and $\Gamma_{ij}^{k}$ are the \emph{Christoffel symbols}; second-order properties of the Earth's surface at each point that you might study in a differential geometry course. It is not necessary to know what they are for the purposes of our discussion. What is important is to know that given the initial conditions $\mathbf{x}(0)=A$ and $\dot{\mathbf{x}}(0)=\mathbf{v}(0)=\mathbf{v}_{0}$ this second-order differential equation \emph{determines the rest of the geodesic}. Following a geodesic means setting out from village A with some initial velocity vector $\mathbf{v}_{0}$, and walking in such a way that our path is always locally straight, having zero geodesic curvature. For some choice of initial velocity vector $\mathbf{v}_{0}$, we will end up reaching village B at $t=1$. 
+\item This general approach of starting out from a given point along a given velocity and following a geodesic is called \emph{geodesic shooting}. It allows us to reformulate the shortest path problem in terms of a much simpler unknown, $\mathbf{v}_{0}$:
+\begin{equation}
+\mathbf{v}_{0}^{*}=\argmin\limits _{\mathbf{v}_{0}\in\mathbb{R}^{3}}|\mathbf{x}(1)-B|^{2}\quad\text{subject to}\ensuremath{\quad\mathbf{x}(0)=A,\ \dot{\mathbf{x}}(0)=\mathbf{v}_{0}\ \text{and (\ref{eq:vnr-geodesic-ode-velocity})}}.\label{eq:vnr-geodesic-shooting}
+\end{equation}
+This problem is similar to rotating a tank to shoot a target, but with the difference that the projectiles move along geodesics. The advantage of this geodesic shooting formulation compared to the the previous formulation (\ref{eq:vnr-geodesic-minimization}) is that it reduces the search space by a whole dimension. Another advantage is that even if we do not find the minimum of (\ref{eq:vnr-geodesic-shooting}), our solutions $\mathbf{x}(t)$ obtained by solving the ODE (\ref{eq:vnr-geodesic-ode}) are always going to be geodesics (just ones that don't quite get us to village B). This is not the case for the previous formulation (\ref{eq:vnr-geodesic-minimization}), where solutions short of the minimum are not guaranteed to be geodesics. 
+\end{itemize}
+This idea of geodesic shooting extends beautifully to diffeomorphisms. Diffeomorphic flows $\phi_{t}$ that correspond to velocity fields $\mathbf{v}_{t}$ that minimize the LDDMM energy $E[\mathbf{v};I,J]$ are indeed geodesics on the space $\text{Diff}$, with their length given by 
+\[
+L[\phi_{1}]^{2}=\|\mathbf{v}\|_{{\cal V}}^{2}\,.
+\]
+Consequently, these geodesics satisfy the ``locally straight'' differential equation equivalent to (\ref{eq:vnr-geodesic-ode-velocity}). This equation is called the Euler-Poincaré Differential Equation (EPDiff) and has the following form:
+\begin{equation}
+\frac{\text{d}\mathbf{m}}{\text{d}t}+(D\mathbf{m})\mathbf{v}+(D\mathbf{v})^{T}\mathbf{m}+\mathbf{m}\,(\nabla\cdot\mathbf{v})=\mathbf{0}\,,\label{eq:vnr-geodesic-diff}
+\end{equation}
+where $D$ denotes the Jacobian matrix, $\nabla\cdot\mathbf{v}$ denotes the divergence operator, and $\mathbf{m}$ is called the \emph{momentum}, given by 
+\[
+\mathbf{m}={\cal L}^{\dagger}{\cal L}\mathbf{v}\quad(\text{equivalently, \ensuremath{\mathbf{v}={\cal K}\mathbf{m})}}
+\]
+The momentum is a time-varying vector field just like $\mathbf{v}$, with $\mathbf{v}$ essentially being a smoothed version of $\mathbf{m}$ due to the form of the operator ${\cal L}$. This momentum has some analogy with the concept of momentum in particle physics. 
+
+Like the ODE (\ref{eq:vnr-geodesic-ode-velocity}), the EPDiff equation is a differential equation involving $\mathbf{v}$. Consequently, the solutions of (\ref{eq:vnr-geodesic-ode-velocity}) are determined by the initial conditions, i.e., the initial velocity field $\mathbf{v}(0)$, or equivalently, the initial momentum field $\mathbf{m}(0)$ (since velocity and momentum are related to each other by the operator ${\cal L}$). Therefore, we can reformulate the problem of diffeomorphic image registration as the problem of geodesic shooting: finding the initial velocity $\mathbf{v}_{0}$ (or initial momentum $\mathbf{m}_{0}$) for which the geodesic $\phi_{t}$ optimally matches images $I$ and $J$ at time $1$. In complete form, this problem is formulated as follows \cite{miller06,younes09}:
+\begin{multline}
+\mathbf{m}_{0}^{*}=\argmin\limits _{\mathbf{m}_{0}}\intop_{\Omega}\left|I\circ\phi_{1}^{-1}-J\right|^{2}\,,\quad\text{where}\\
+\begin{cases}
+\mathbf{v}_{t}={\cal K}\mathbf{m}_{t}\\
+\frac{\text{d}\mathbf{m}_{t}}{\text{d}t}+(D\mathbf{m}_{t})\mathbf{v}_{t}+(D\mathbf{v}_{t})^{T}\mathbf{m}_{t}+\mathbf{m}_{t}\,(\nabla\cdot\mathbf{v}_{t})=\mathbf{0} & \text{}\\
+\frac{\text{d}\phi_{t}}{\text{d}t}=\mathbf{v}_{t}\circ\phi_{t}
+\end{cases}\label{eq:vnr-shooting-complete}
+\end{multline}
+
+Solving this problem via gradient descent is computationally feasible. It involves pulling back the gradient of the image similarity metric with respect to $\phi_{1}$ back through the ODEs for $\phi_{t}$ and $\mathbf{m}_{t}$. While the math for this is rather involved, the approach can be efficiently implemented computationally. As in the simple example introduced above, geodesic shooting offers the following advantages over the variational formulation of LDDMM:
+\begin{itemize}
+\item The optimization is over a single vector field $\mathbf{m}_{0}$, as opposed to the time-varying velocity field $\mathbf{v}$. This reduces the memory requirements of the algorithm and can lead to faster convergence. \textbf{Add a sentence on Miaomiao's Fourier domain paper.}
+\item Even if the minimum of the objective is not reached, solutions that are geodesics in $\text{Diff}$ are obtained. 
+\end{itemize}
+
+\subsection{LDDMM and Computational Anatomy.}
+
+\subsubsection{Defining Distance on the Space of Diffeomorphic Transformations}
+
+In addition to being a formidable image registration method LDDMM gives rise to a family of medical image statistical analysis approaches known as \emph{computational anatomy} \cite{miller02,miller06,younes09}. The Sobolev norm $\|\mathbf{v}\|_{{\cal V}}^{2}$ can be used to extend the concept of ``distance'' to the space of diffeomorphic transformations $\text{Diff}$, and even to the space of medical images. Let $\psi\in\text{Diff}$ be a diffeomorphic transformation on $\Omega$. Then let us define the distance between the identity transformation (i.e., the origin of the space $\text{Diff}$) and $\psi$ as follows:
+\[
+d(\text{Id},\psi)^{2}=\min\limits _{\mathbf{v}\in{\cal V}:\phi_{1}[\mathbf{v}]=\psi}\,\|\mathbf{v}\|_{{\cal V}}^{2}\,,
+\]
+where $\phi_{1}[\mathbf{v}]$ denotes the solution of the flow ODE (\ref{eq:vnr-diff-flowode}) with input $\mathbf{v}$ at time $1$. In other words, $d(\text{Id},\psi)$ is equal to the kinetic energy of the least energetic diffeomorphic flow that has as its end-point the diffeomorphism $\psi$. For a pair of diffeomorphic transformations $\psi,\xi$, the distance is defined as 
+\[
+d(\xi,\psi)=d(\text{Id},\psi\circ\xi^{-1})\,.
+\]
+It quantifies the kinetic energy of the least energetic diffeomorphic flow that maps the end-point of $\xi$ to the end-point of $\psi$. Although this distance function is not symmetric, it satisfies the properties of\emph{ }a proper distance function\emph{ }on the space $\text{Diff}$: $d(\xi,\psi)\ge0$ for all $\psi,\xi\in\text{Diff}$; $d(\xi,\psi)=0$ if and only if $\psi=\xi$; and the triangle inequality $d(\xi,\psi)\le d(\xi,\eta)+d(\eta,\psi)$ is satisfied for all $\psi,\xi,\eta\in\text{Diff}$ \cite{miller02}. 
+
+\subsubsection{Defining Distance on the Space of Images}
+
+While being able to measure distance between elements of $\text{Diff}$ is useful, it would be even more useful to measure distance between images. At first, let us make a rather strong assumption that in our collection of images, any two images can be matched perfectly using some diffeomorphic transformation. This assumption makes sense if all images in the collection are deformations of a template image. It also makes sense for simple images, for example, images of fried eggs. In this setting, we can define the distance between images $I$ and $J$ as follows:
+\[
+d(I,J)^{2}=\min\limits _{\mathbf{v}\in{\cal V}:I\circ\phi_{1}^{-1}[\mathbf{v}]=J}\,\|\mathbf{v}\|_{{\cal V}}^{2}\,,
+\]
+in other words, the kinetic energy of the least energetic diffeomorphic flow that warps $I$ to look like $J$ at time $1$. This distance function on images also behaves like a proper distance function (non-negative, zero only if $I=J$, satisfies triangle inequality). 
+
+In real-world applications, the assumption that $J$ can be generated from $I$ by a diffeomorphic transformation is too strong, as images have different intensity characteristics, noise, and often the underlying anatomical content is not one-to-one. The concept of distance between images must be relaxed to allow for inexact matching of $I$ and $J$. A practical approach is to define the inexact distance between $I$ and $J$ as
+
+\[
+d_{\text{inexact}}(I,J)^{2}=\min\limits _{\mathbf{v}\in{\cal V}}\text{\ensuremath{E[\mathbf{v};I,J]}}\,,
+\]
+where $E[\mathbf{v};I,J]$ is the LDDMM energy from (\ref{eq:vnr-lddmm-complete}), i.e., the sum of the kinetic energy of the diffeomorphic flow that best matches $I$ and $J$ and a residual intensity difference term. While this definition of distance no longer has the rigorous mathematical properties of the exact distance $d(I,J)$, it allows for many practical algorithms where distance between real-world images needs to be computed.\footnote{The theory of \emph{image metamorphosis} \cite{holm09,richardson16} models transformations between images as pairs consisting of a diffeomorphic geometric component and an intensity variation component; and allows for a mathematically robust definition of distance between images that cannot be matched exactly.}
+
+\subsubsection{Applications to Statistical Analysis of Images}
+
+Medical images are data, and we often want to draw inferences from medical images using statistical analysis. Often we derive some summary features from images (e.g., volume of the hippocampus) and perform statistical analysis on these derived measures (What is the average hippocampus volume in a given group? Does the mean hippocampal volume differ between patients and healthy individuals? Does the hippocampal volume change with age?). But summary features do not capture the entirety of information in the image. It would be nice to be able to perform the same kinds of statistical analyses on the images themselves, treating each image not as a source of one or more summary measures, but as a highly-dimensional multi-variate observation.
+
+Of course, images are collections of voxels, and we can treat the vector of all intensities in an image as a multi-variate observation. But because voxels with the same coordinates across different images come from different anatomical locations, any such analysis will be almost meaningless. For example, averaging a collection of images, voxel-by-voxel, results in a blurry image that looks almost nothing like the source images and tells us nothing about the average anatomy in the collection.
+
+By defining a distance function on the space of images that captures anatomical differences, rather than intensity differences, the LDDMM approach makes it possible to extend various concepts from statistics to the image domain. Many methods in statistics (finding the mean, linear and non-linear regression, dimensionality reduction) are formulated as least square fitting problems. For example, the problem of finding the mean of a sample of multi-variate observations $\mathbf{x}_{1},\ldots,\mathbf{x}_{n}$ can be formulated in terms of minimizing the sum of squared distances:
+\begin{equation}
+\overline{\mathbf{x}}_{\text{Fr}}=\argmin\limits_{\mathbf{x}\in{\cal X}}\sum_{i=1}^{n} d(\mathbf{x},\mathbf{x}_{i})^{2}\,.\label{eq:vnr-frechet-1}
+\end{equation}
+This definition of the mean is called the \emph{Fréchet mean,} and unlike the arithmetic mean given by $\frac{1}{n}\sum_{i=1}^{n}\mathbf{x}_{i}$, it extends to non-Euclidean spaces. As long as the space ${\cal X}$ in which the observations $\mathbf{x}_{1},\ldots,\mathbf{x}_{n}$ lie has a distance function, the Fréchet mean is well-defined. It is easy to verify that when ${\cal X}$ is a Euclidean space, the Fréchet mean is equal to the arithmetic mean. The Fréchet mean of a set of images $I_{1}\,\ldots,I_{n}$ defined on the domain $\Omega$ can thus be constructed by solving the following minimization problem:
+\[
+\overline{I}_{\text{Fr}}=\argmin\limits _{I\in{\cal I}_{\Omega}}\sum_{i=1}^{n}d_{\text{inexact}}(I,I_{i})^{2}=\argmin\limits _{I\in{\cal I}_{\Omega},\mathbf{v}_{1}\in{\cal V},\ldots,\mathbf{v}_{n}\in{\cal V}}\sum_{i=1}^{n}\text{\ensuremath{E[\mathbf{v}_{i};I,I_{i}]}}.
+\]
+This involves simultaneously searching for a ``synthetic'' mean image $I$ and a set of velocity fields $\mathbf{v}_{1},\ldots,\mathbf{v}_{n}$ that optimally warp $I$ to match the input images. An efficient way to solve this minimization, proposed by Joshi et al., \cite{joshi04}, is to alternate minimizing over $I$ and $\mathbf{v}_{1},\ldots,\mathbf{v}_{n}$. The resulting algorithm alternates between $n$ independent LDDMM registrations and arithmetic averaging of image intensities, and yields excellent mean images (Figure XXX). These images are commonly used to create \emph{population-specific templates} for groupwise analysis of medical imaging data {[}XXX{]}. 
+
+Many other problems in statistics have been extended to the space of images. For example, the equivalent of linear regression (i.e., fitting a slope and an intercept of a line that best describes the relationship between a dependent variable, like hippocampal volume, and an independent variable, like age) is \emph{geodesic regression} \cite{fletcher13}. In geodesic regression with a scalar independent variable, we have a set of observations $(t_{i}\in[0,1],I_{i}\in{\cal I}_{\Omega})$ and we one seeks to find a time-parameterized sequence of images $I_{t}=I_{0}\circ\phi_{t}$ that forms a geodesic in the space of images, such that the sum of squared distances from the observed images to $I_{t}$ is minimized. Specifically, one solves a minimization problem
+\[
+(I_{0}^{*},\mathbf{v}^{*})=\argmin\limits _{I_{0}\in{\cal I}_{\Omega},\text{\textbf{v}\ensuremath{\in{\cal V}}}}\sum_{i=1}^{n}\text{\ensuremath{d(I_{0}\circ\phi_{t_{i}}^{\mathbf{v}},I_{i})^{2}}}
+\]
+that is conceptually similar to the Fréchet mean problem in that it requires nested minimization. The concept of non-linear regression (i.e., fitting a quadratic or cubic curve to data in a least squares sense) has also been extended to the manifold of images \cite{singh14}. So have been the concepts of mixed modeling for longitudinal image analysis {[}XXX{]}, principal components analysis for data dimensionality reduction {[}XXX{]} and numerous other data analysis techniques that can be framed in terms of distance minimization.
+
+\bibliographystyle{plain}
+\bibliography{all}
+
+\end{document}
